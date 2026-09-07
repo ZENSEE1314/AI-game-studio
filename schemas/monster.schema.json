@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Studio creature v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "name", "element", "hp", "attack", "lore", "status"],
+  "properties": {
+    "id": { "type": "string", "minLength": 1, "maxLength": 100 },
+    "name": { "type": "string", "minLength": 1, "maxLength": 50 },
+    "element": { "enum": ["Nature", "Fire", "Water"] },
+    "hp": { "type": "integer", "minimum": 10, "maximum": 200 },
+    "attack": { "type": "integer", "minimum": 1, "maximum": 50 },
+    "lore": { "type": "string", "minLength": 1, "maxLength": 1000 },
+    "status": { "enum": ["Draft", "Review", "Approved"] }
+  }
+}

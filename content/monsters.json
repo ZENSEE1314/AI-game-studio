@@ -1,0 +1,29 @@
+[
+  {
+    "id": "mossling",
+    "name": "Mossling",
+    "element": "Nature",
+    "hp": 90,
+    "attack": 18,
+    "lore": "A shy keeper of forgotten gardens. A new leaf grows whenever it makes a friend.",
+    "status": "Approved"
+  },
+  {
+    "id": "emberfox",
+    "name": "Emberfox",
+    "element": "Fire",
+    "hp": 75,
+    "attack": 24,
+    "lore": "Carries the warmth of a tiny sunrise in its tail. It guides travelers through the rain.",
+    "status": "Review"
+  },
+  {
+    "id": "ripplefin",
+    "name": "Ripplefin",
+    "element": "Water",
+    "hp": 110,
+    "attack": 15,
+    "lore": "Collects the songs that fall into still water and hums them beneath the moon.",
+    "status": "Draft"
+  }
+]
