@@ -181,3 +181,22 @@ anything of value this becomes gambling: do not do that with this code.
 - **Not built:** correcting a published result (would need a separate audited action), grants by
   Agency/Agent/Staff (Super Admin only), commissions, notifications, round schedules/timers.
   The mobile app is verified by type-check and bundle only, never run on a device.
+
+## Notifications (in-app)
+- `GET /notifications` (paging, `?unread=true`), `GET /notifications/unread-count`,
+  `POST /notifications/:id/read`, `POST /notifications/read-all`. Every query is scoped to the
+  caller; another account's notice returns 404.
+- Created inside the same database transaction as the change they describe:
+  - round **opened** → every active non-admin account ("New round open");
+  - result **published** → each participant: "You won! 🏆" or "Result published, credits returned";
+  - round **cancelled** → participants only ("credits returned").
+  Draft creation and entering a result (preview) notify nobody; suspended accounts are skipped;
+  Super Admin is never notified of their own actions.
+- Web: bell count on the sidebar link (refreshes on navigation, every 30 s and on read), a
+  Notifications page (unread filter, mark all read, click-through to the round / Play page).
+  Mobile: "Alerts" tab with an unread badge, list, mark-all-read, tap to open Play.
+- Tests: `test/notifications-smoke.sh` (20 checks) and `apps/web/test-notifications.e2e.js`
+  (8 browser checks). Mobile verified by type-check and bundle only.
+- **Not built: push notifications** (needs Expo push tokens and a real device to verify; the other
+  notification types in the original spec, e.g. account suspended, CCTV, accounting approval,
+  reconciliation discrepancy, are not wired). Notices are not auto-purged.

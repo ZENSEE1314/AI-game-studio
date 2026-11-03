@@ -153,6 +153,12 @@
       "namedRegex": "^/login(?:/)?$"
     },
     {
+      "page": "/notifications",
+      "regex": "^/notifications(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/notifications(?:/)?$"
+    },
+    {
       "page": "/play",
       "regex": "^/play(?:/)?$",
       "routeKeys": {},

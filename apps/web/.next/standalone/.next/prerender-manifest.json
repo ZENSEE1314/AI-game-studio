@@ -74,6 +74,30 @@
         "x-next-revalidate-tag-token"
       ]
     },
+    "/accounting/reports": {
+      "experimentalBypassFor": [
+        {
+          "type": "header",
+          "key": "next-action"
+        },
+        {
+          "type": "header",
+          "key": "content-type",
+          "value": "multipart/form-data;.*"
+        }
+      ],
+      "initialRevalidateSeconds": false,
+      "srcRoute": "/accounting/reports",
+      "dataRoute": "/accounting/reports.rsc",
+      "allowHeader": [
+        "host",
+        "x-matched-path",
+        "x-prerender-revalidate",
+        "x-prerender-revalidate-if-generated",
+        "x-next-revalidated-tags",
+        "x-next-revalidate-tag-token"
+      ]
+    },
     "/accounting/reconciliation": {
       "experimentalBypassFor": [
         {
@@ -122,30 +146,6 @@
         "x-next-revalidate-tag-token"
       ]
     },
-    "/accounting/reports": {
-      "experimentalBypassFor": [
-        {
-          "type": "header",
-          "key": "next-action"
-        },
-        {
-          "type": "header",
-          "key": "content-type",
-          "value": "multipart/form-data;.*"
-        }
-      ],
-      "initialRevalidateSeconds": false,
-      "srcRoute": "/accounting/reports",
-      "dataRoute": "/accounting/reports.rsc",
-      "allowHeader": [
-        "host",
-        "x-matched-path",
-        "x-prerender-revalidate",
-        "x-prerender-revalidate-if-generated",
-        "x-next-revalidated-tags",
-        "x-next-revalidate-tag-token"
-      ]
-    },
     "/accounting/setup": {
       "experimentalBypassFor": [
         {
@@ -161,30 +161,6 @@
       "initialRevalidateSeconds": false,
       "srcRoute": "/accounting/setup",
       "dataRoute": "/accounting/setup.rsc",
-      "allowHeader": [
-        "host",
-        "x-matched-path",
-        "x-prerender-revalidate",
-        "x-prerender-revalidate-if-generated",
-        "x-next-revalidated-tags",
-        "x-next-revalidate-tag-token"
-      ]
-    },
-    "/audit": {
-      "experimentalBypassFor": [
-        {
-          "type": "header",
-          "key": "next-action"
-        },
-        {
-          "type": "header",
-          "key": "content-type",
-          "value": "multipart/form-data;.*"
-        }
-      ],
-      "initialRevalidateSeconds": false,
-      "srcRoute": "/audit",
-      "dataRoute": "/audit.rsc",
       "allowHeader": [
         "host",
         "x-matched-path",
@@ -218,7 +194,7 @@
         "x-next-revalidate-tag-token"
       ]
     },
-    "/credits": {
+    "/audit": {
       "experimentalBypassFor": [
         {
           "type": "header",
@@ -231,8 +207,8 @@
         }
       ],
       "initialRevalidateSeconds": false,
-      "srcRoute": "/credits",
-      "dataRoute": "/credits.rsc",
+      "srcRoute": "/audit",
+      "dataRoute": "/audit.rsc",
       "allowHeader": [
         "host",
         "x-matched-path",
@@ -266,7 +242,7 @@
         "x-next-revalidate-tag-token"
       ]
     },
-    "/play": {
+    "/credits": {
       "experimentalBypassFor": [
         {
           "type": "header",
@@ -279,8 +255,32 @@
         }
       ],
       "initialRevalidateSeconds": false,
-      "srcRoute": "/play",
-      "dataRoute": "/play.rsc",
+      "srcRoute": "/credits",
+      "dataRoute": "/credits.rsc",
+      "allowHeader": [
+        "host",
+        "x-matched-path",
+        "x-prerender-revalidate",
+        "x-prerender-revalidate-if-generated",
+        "x-next-revalidated-tags",
+        "x-next-revalidate-tag-token"
+      ]
+    },
+    "/notifications": {
+      "experimentalBypassFor": [
+        {
+          "type": "header",
+          "key": "next-action"
+        },
+        {
+          "type": "header",
+          "key": "content-type",
+          "value": "multipart/form-data;.*"
+        }
+      ],
+      "initialRevalidateSeconds": false,
+      "srcRoute": "/notifications",
+      "dataRoute": "/notifications.rsc",
       "allowHeader": [
         "host",
         "x-matched-path",
@@ -314,7 +314,7 @@
         "x-next-revalidate-tag-token"
       ]
     },
-    "/system": {
+    "/play": {
       "experimentalBypassFor": [
         {
           "type": "header",
@@ -327,8 +327,8 @@
         }
       ],
       "initialRevalidateSeconds": false,
-      "srcRoute": "/system",
-      "dataRoute": "/system.rsc",
+      "srcRoute": "/play",
+      "dataRoute": "/play.rsc",
       "allowHeader": [
         "host",
         "x-matched-path",
@@ -353,6 +353,30 @@
       "initialRevalidateSeconds": false,
       "srcRoute": "/game",
       "dataRoute": "/game.rsc",
+      "allowHeader": [
+        "host",
+        "x-matched-path",
+        "x-prerender-revalidate",
+        "x-prerender-revalidate-if-generated",
+        "x-next-revalidated-tags",
+        "x-next-revalidate-tag-token"
+      ]
+    },
+    "/system": {
+      "experimentalBypassFor": [
+        {
+          "type": "header",
+          "key": "next-action"
+        },
+        {
+          "type": "header",
+          "key": "content-type",
+          "value": "multipart/form-data;.*"
+        }
+      ],
+      "initialRevalidateSeconds": false,
+      "srcRoute": "/system",
+      "dataRoute": "/system.rsc",
       "allowHeader": [
         "host",
         "x-matched-path",

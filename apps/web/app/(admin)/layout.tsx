@@ -14,11 +14,17 @@ const ACCOUNTS: Record<string, Nav[]> = {
 };
 const ADMIN_ONLY: Nav[] = [['Game Rounds', '/game'], ['Credits', '/credits'], ['Accounting', '/accounting'], ['Chart & Periods', '/accounting/setup'], ['Financial Reports', '/accounting/reports'],
   ['Reconciliation', '/accounting/reconciliation'], ['System Settings', '/system'], ['Audit Logs', '/audit']];
-const navFor = (role: string): Nav[] => [['Dashboard', '/dashboard'], ...(role === 'SUPER_ADMIN' ? [] : ([['Play', '/play']] as Nav[])), ...(ACCOUNTS[role] ?? []), ...(role === 'SUPER_ADMIN' ? ADMIN_ONLY : []), ['My profile', '/profile']];
+const navFor = (role: string): Nav[] => [['Dashboard', '/dashboard'], ['Notifications', '/notifications'], ...(role === 'SUPER_ADMIN' ? [] : ([['Play', '/play']] as Nav[])), ...(ACCOUNTS[role] ?? []), ...(role === 'SUPER_ADMIN' ? ADMIN_ONLY : []), ['My profile', '/profile']];
 const adminOnlyPath = (p: string) => ADMIN_ONLY.some(([, h]) => p === h || p.startsWith(h + '/'));
 
 function Sidebar({ role, name }: { role: string; name: string }) {
   const path = usePathname(); const sp = useSearchParams();
+  const [unread, setUnread] = useState(0);
+  useEffect(() => {
+    const tick = () => api('notifications/unread-count').then((r) => setUnread(r.unread)).catch(() => {});
+    tick(); const t = setInterval(tick, 30000); window.addEventListener('notifications-changed', tick);
+    return () => { clearInterval(t); window.removeEventListener('notifications-changed', tick); };
+  }, [path]);
   const current = path + (sp.get('role') ? `?role=${sp.get('role')}` : '');
   async function logout() {
     await fetch('/api/auth/logout', { method: 'POST' });
@@ -31,7 +37,7 @@ function Sidebar({ role, name }: { role: string; name: string }) {
         {navFor(role).map(([label, href]) => (
           <Link key={href} href={href}
             className={`block rounded-md px-2 py-1.5 text-sm ${current === href ? 'bg-indigo-50 font-medium text-indigo-700' : 'hover:bg-slate-100'}`}>
-            {label}
+            {label}{href === '/notifications' && unread > 0 && <span className="ml-2 rounded-full bg-red-600 px-1.5 py-0.5 text-xs text-white" aria-label={`${unread} unread`}>{unread}</span>}
           </Link>
         ))}
       </nav>

@@ -3,6 +3,7 @@ import { Prisma, Role, RoundStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { AuthUser } from '../common/decorators';
+import { NotificationsService } from '../notifications/notifications.module';
 import { Pick, totalStake, validatePicks } from './game.math';
 
 type Tx = Prisma.TransactionClient;
@@ -10,7 +11,7 @@ const big = (n: number) => BigInt(n);
 
 @Injectable()
 export class GameService {
-  constructor(private prisma: PrismaService, private audit: AuditService) {}
+  constructor(private prisma: PrismaService, private audit: AuditService, private notices: NotificationsService) {}
 
   // ---------- wallet (in-game credits: no cash value, no purchase/withdraw/transfer path exists) ----------
   private async ensureWallet(tx: Tx, userId: string) {
@@ -122,7 +123,15 @@ export class GameService {
     });
   }
 
-  open(a: AuthUser, id: string) { return this.move(a, id, ['DRAFT'], 'OPEN', { openedAt: new Date() }); }
+  open(a: AuthUser, id: string) {
+    return this.move(a, id, ['DRAFT'], 'OPEN', { openedAt: new Date() }, async (tx) => {
+      const r = await tx.gameRound.findUniqueOrThrow({ where: { id } });
+      const n = await this.notices.notify(await this.notices.playerIds(tx), {
+        type: 'ROUND_OPENED', title: 'New round open', body: `${r.name} is open. Pick your numbers (minimum ${r.minStake.toString()} credits each).`, data: { roundId: id },
+      }, tx);
+      return { notified: n };
+    });
+  }
 
   async lock(a: AuthUser, id: string) {
     // FOR SHARE locks taken by players' submissions block this update until they finish: no pick slips in after lock.
@@ -130,7 +139,13 @@ export class GameService {
   }
 
   cancel(a: AuthUser, id: string) {
-    return this.move(a, id, ['DRAFT', 'OPEN', 'LOCKED', 'RESULT_PENDING'], 'CANCELLED', {}, (tx) => this.releaseRound(tx, id, a.id, 'cancelled'));
+    return this.move(a, id, ['DRAFT', 'OPEN', 'LOCKED', 'RESULT_PENDING'], 'CANCELLED', {}, async (tx) => {
+      const r = await tx.gameRound.findUniqueOrThrow({ where: { id } });
+      const who = (await tx.numberSelection.findMany({ where: { roundId: id }, select: { userId: true }, distinct: ['userId'] })).map((x) => x.userId);
+      const players = await this.releaseRound(tx, id, a.id, 'cancelled');
+      await this.notices.notify(who, { type: 'ROUND_CANCELLED', title: 'Round cancelled', body: `${r.name} was cancelled. Your held credits were returned.`, data: { roundId: id } }, tx);
+      return { players };
+    });
   }
 
   async setResult(a: AuthUser, id: string, number: number) {
@@ -150,6 +165,11 @@ export class GameService {
       await tx.gameRound.update({ where: { id }, data: { status: 'COMPLETED' } });
       const players = await this.releaseRound(tx, id, a.id, 'completed');
       const winners = await tx.numberSelection.count({ where: { roundId: id, number } });
+      const sel = await tx.numberSelection.findMany({ where: { roundId: id }, select: { userId: true, number: true } });
+      const winIds = new Set(sel.filter((x) => x.number === number).map((x) => x.userId));
+      const all = [...new Set(sel.map((x) => x.userId))];
+      await this.notices.notify(all.filter((u) => winIds.has(u)), { type: 'ROUND_RESULT', title: 'You won! 🏆', body: `${r.name}: the winning number was ${number} and you picked it.`, data: { roundId: id, won: true, number } }, tx);
+      await this.notices.notify(all.filter((u) => !winIds.has(u)), { type: 'ROUND_RESULT', title: 'Result published', body: `${r.name}: the winning number was ${number}. Your credits were returned.`, data: { roundId: id, won: false, number } }, tx);
       await this.audit.log({ actorId: a.id, action: 'ROUND_RESULT_PUBLISHED', entityType: 'game_round', entityId: id, metadata: { number, players, winners } }, tx);
       return tx.gameRound.findUniqueOrThrow({ where: { id }, include: { result: true } });
     });
