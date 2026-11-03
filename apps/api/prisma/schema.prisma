@@ -1,0 +1,190 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  SUPER_ADMIN
+  AGENCY
+  AGENT
+  STAFF
+  USER
+}
+
+enum AccountStatus {
+  ACTIVE
+  SUSPENDED
+}
+
+// ---------- USER MANAGEMENT ----------
+
+model User {
+  id               String        @id @default(uuid()) @db.Uuid
+  username         String        @unique
+  email            String        @unique
+  phone            String?       @unique
+  passwordHash     String        @map("password_hash")
+  fullName         String        @map("full_name")
+  role             Role
+  parentId         String?       @map("parent_id") @db.Uuid
+  agencyId         String?       @map("agency_id") @db.Uuid
+  agentId          String?       @map("agent_id") @db.Uuid
+  staffId          String?       @map("staff_id") @db.Uuid
+  status           AccountStatus @default(ACTIVE)
+  suspendedAt      DateTime?     @map("suspended_at")
+  suspensionReason String?       @map("suspension_reason")
+  suspendedById    String?       @map("suspended_by_id") @db.Uuid
+  totpSecret       String?       @map("totp_secret")
+  totpEnabled      Boolean       @default(false) @map("totp_enabled")
+  lastLogin        DateTime?     @map("last_login")
+  createdAt        DateTime      @default(now()) @map("created_at")
+  updatedAt        DateTime      @updatedAt @map("updated_at")
+
+  parent    User?  @relation("Parent", fields: [parentId], references: [id], onDelete: Restrict)
+  children  User[] @relation("Parent")
+  agency    User?  @relation("Agency", fields: [agencyId], references: [id], onDelete: Restrict)
+  agencyMembers User[] @relation("Agency")
+  agent     User?  @relation("Agent", fields: [agentId], references: [id], onDelete: Restrict)
+  agentMembers User[] @relation("Agent")
+  staff     User?  @relation("Staff", fields: [staffId], references: [id], onDelete: Restrict)
+  staffMembers User[] @relation("Staff")
+
+  sessions        UserSession[]
+  ancestorOf      AccountHierarchy[] @relation("HierAncestor")
+  descendantOf    AccountHierarchy[] @relation("HierDescendant")
+  statusHistory   AccountStatusHistory[] @relation("HistoryTarget")
+  notifications   Notification[]
+
+  @@index([role, status])
+  @@index([parentId])
+  @@index([agencyId])
+  @@index([agentId])
+  @@index([staffId])
+  @@map("users")
+}
+
+model UserSession {
+  id          String    @id @default(uuid()) @db.Uuid
+  userId      String    @map("user_id") @db.Uuid
+  refreshHash String    @unique @map("refresh_hash")
+  userAgent   String?   @map("user_agent")
+  ip          String?
+  expiresAt   DateTime  @map("expires_at")
+  revokedAt   DateTime? @map("revoked_at")
+  revokeReason String?  @map("revoke_reason")
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, revokedAt])
+  @@map("user_sessions")
+}
+
+model RoleDef {
+  id          String   @id @default(uuid()) @db.Uuid
+  name        Role     @unique
+  description String?
+  rank        Int
+  permissions RolePermission[]
+
+  @@map("roles")
+}
+
+model Permission {
+  id          String @id @default(uuid()) @db.Uuid
+  code        String @unique
+  description String?
+  roles       RolePermission[]
+
+  @@map("permissions")
+}
+
+model RolePermission {
+  roleId       String @map("role_id") @db.Uuid
+  permissionId String @map("permission_id") @db.Uuid
+
+  role       RoleDef    @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+  @@map("role_permissions")
+}
+
+/// Closure table: one row per (ancestor, descendant) pair; depth 0 = self.
+model AccountHierarchy {
+  ancestorId   String @map("ancestor_id") @db.Uuid
+  descendantId String @map("descendant_id") @db.Uuid
+  depth        Int
+
+  ancestor   User @relation("HierAncestor", fields: [ancestorId], references: [id], onDelete: Restrict)
+  descendant User @relation("HierDescendant", fields: [descendantId], references: [id], onDelete: Restrict)
+
+  @@id([ancestorId, descendantId])
+  @@index([descendantId])
+  @@map("account_hierarchy")
+}
+
+model AccountStatusHistory {
+  id            String        @id @default(uuid()) @db.Uuid
+  userId        String        @map("user_id") @db.Uuid
+  fromStatus    AccountStatus @map("from_status")
+  toStatus      AccountStatus @map("to_status")
+  reason        String
+  changedById   String        @map("changed_by_id") @db.Uuid
+  affectedCount Int           @default(0) @map("affected_count")
+  createdAt     DateTime      @default(now()) @map("created_at")
+
+  user User @relation("HistoryTarget", fields: [userId], references: [id], onDelete: Restrict)
+
+  @@index([userId, createdAt])
+  @@map("account_status_history")
+}
+
+// ---------- SYSTEM ----------
+
+model SystemSetting {
+  key         String   @id
+  value       Json
+  updatedById String?  @map("updated_by_id") @db.Uuid
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@map("system_settings")
+}
+
+model Notification {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  type      String
+  title     String
+  body      String
+  readAt    DateTime? @map("read_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, readAt])
+  @@map("notifications")
+}
+
+/// Append-only, hash-chained. UPDATE/DELETE blocked by DB trigger (see migration).
+model AuditLog {
+  id         BigInt   @id @default(autoincrement())
+  actorId    String?  @map("actor_id") @db.Uuid
+  action     String
+  entityType String   @map("entity_type")
+  entityId   String?  @map("entity_id")
+  metadata   Json?
+  ip         String?
+  prevHash   String?  @map("prev_hash")
+  hash       String
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@index([actorId, createdAt])
+  @@index([entityType, entityId])
+  @@index([action])
+  @@map("audit_logs")
+}
