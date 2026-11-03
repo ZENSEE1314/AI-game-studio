@@ -133,6 +133,12 @@
       "namedRegex": "^/login(?:/)?$"
     },
     {
+      "page": "/profile",
+      "regex": "^/profile(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/profile(?:/)?$"
+    },
+    {
       "page": "/system",
       "regex": "^/system(?:/)?$",
       "routeKeys": {},

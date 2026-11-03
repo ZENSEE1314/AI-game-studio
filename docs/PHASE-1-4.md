@@ -134,3 +134,21 @@ Real company books, fully separate from any in-app balance. Double-entry with `D
   checks); a 10-check browser run. Browser testing found and fixed a crash when switching report types.
 - Not built: importing bank statement files, auto-matching, discrepancy notifications (the
   notifications module doesn't exist yet), multi-currency.
+
+## Role portals (Agency / Agent / Staff)
+- The web panel now serves every management level. The sidebar is built from the signed-in role:
+  Agency (agents, staff, users), Agent (staff, users), Staff (users). Accounting, system settings
+  and audit logs are Super Admin only: hidden in the UI, redirected if opened by URL, and refused
+  by the API. End users get a clear "use the mobile app" message on the web login.
+- Creating accounts: each role can create only the level directly below (Agency→Agent,
+  Agent→Staff, Staff→User) and it is attached to their own account. Lists, search, CSV export and
+  detail pages show only their own downline; accounts outside it return "not found".
+- Suspend/reactivate remain Super Admin only (buttons hidden for others).
+- `POST /auth/change-password` (all roles; web Profile page and mobile Profile): verifies the
+  current password, signs out all other devices, audited. Rate-limited.
+- Mobile: managers get a Team tab (search, paginate, add the next level down).
+- Tests: browser run `apps/web/test-portals.e2e.js` (22 checks) drives Agency→Agent→Staff→User
+  creation through the real UI, scoping, redirects, password change and end-user rejection.
+  Mobile: TypeScript + Android bundle only; still not run on a device.
+- Not built for these roles: demo-credit allocation and commission reports (those belong to the
+  wallet/commission features that were not built), CCTV, notifications.

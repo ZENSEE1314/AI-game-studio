@@ -16,6 +16,8 @@ export default function Detail() {
   const [mode, setMode] = useState<'suspend' | 'reactivate' | null>(null);
   const [reason, setReason] = useState('');
   const [err, setErr] = useState(''); const [msg, setMsg] = useState('');
+  const [isAdmin, setIsAdmin] = useState(false);
+  useEffect(() => { api('auth/me').then((m) => setIsAdmin(m.role === 'SUPER_ADMIN')).catch(() => {}); }, []);
 
   const load = useCallback(() => {
     api(`accounts/${id}`).then((a: Account) => {
@@ -57,7 +59,7 @@ export default function Detail() {
       <dl className="card grid grid-cols-2 gap-2 text-sm">
         {rows.map(([k, v]) => <div key={k}><dt className="text-slate-500">{k}</dt><dd>{v}</dd></div>)}
       </dl>
-      {acc.role !== 'SUPER_ADMIN' && !mode && (acc.status === 'ACTIVE'
+      {isAdmin && acc.role !== 'SUPER_ADMIN' && !mode && (acc.status === 'ACTIVE'
         ? <button className="btn btn-danger" onClick={() => open('suspend')}>Suspend…</button>
         : <button className="btn btn-primary" onClick={() => open('reactivate')}>Reactivate…</button>)}
 

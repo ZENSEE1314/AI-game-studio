@@ -95,6 +95,20 @@ export class AuthService {
     });
   }
 
+  async changePassword(userId: string, sessionId: string, current: string, next: string, ip?: string) {
+    const u = await this.prisma.user.findUniqueOrThrow({ where: { id: userId } });
+    if (!(await bcrypt.compare(current, u.passwordHash))) throw new UnauthorizedException('Current password is incorrect');
+    if (current === next) throw new BadRequestException('New password must differ from the current one');
+    const passwordHash = await bcrypt.hash(next, 12);
+    await this.prisma.$transaction(async (tx) => {
+      await tx.user.update({ where: { id: userId }, data: { passwordHash } });
+      // Every other device is signed out; this session continues.
+      await tx.userSession.updateMany({ where: { userId, revokedAt: null, id: { not: sessionId } }, data: { revokedAt: new Date(), revokeReason: 'PASSWORD_CHANGED' } });
+      await this.audit.log({ actorId: userId, action: 'PASSWORD_CHANGED', entityType: 'user', entityId: userId, ip }, tx);
+    });
+    return { changed: true };
+  }
+
   async logout(sessionId: string) {
     await this.prisma.userSession.update({ where: { id: sessionId }, data: { revokedAt: new Date(), revokeReason: 'LOGOUT' } });
   }

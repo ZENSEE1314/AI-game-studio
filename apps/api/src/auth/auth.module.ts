@@ -20,6 +20,7 @@ export class RegisterDto {
   @IsOptional() @Matches(/^\+?[0-9]{8,15}$/) phone?: string;
   @IsString() staffUsername: string;
 }
+export class ChangePasswordDto { @IsString() currentPassword: string; @IsString() @MinLength(10) newPassword: string; }
 export class RefreshDto { @IsString() refreshToken: string; }
 export class CodeDto { @Matches(/^\d{6}$/) code: string; }
 
@@ -40,6 +41,11 @@ export class AuthController {
 
   @AllowInMaintenance() @Post('logout')
   logout(@CurrentUser() u: AuthUser) { return this.auth.logout(u.sessionId); }
+
+  @Post('change-password') @AllowInMaintenance() @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  changePassword(@CurrentUser() u: AuthUser, @Body() dto: ChangePasswordDto, @Req() req: any) {
+    return this.auth.changePassword(u.id, u.sessionId, dto.currentPassword, dto.newPassword, req.ip);
+  }
 
   @Get('me') @AllowInMaintenance()
   me(@CurrentUser() u: AuthUser) { return this.auth.profile(u.id); }

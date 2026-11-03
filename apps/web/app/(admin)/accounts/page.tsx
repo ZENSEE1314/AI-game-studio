@@ -11,13 +11,17 @@ function Badge({ s }: { s: string }) {
   return <span className={`rounded px-1.5 py-0.5 text-xs ${s === 'ACTIVE' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>{s}</span>;
 }
 
-function CreateForm({ defaultRole, onDone }: { defaultRole: string; onDone: () => void }) {
-  const [role, setRole] = useState(defaultRole);
+const CREATABLE: Record<string, string[]> = { SUPER_ADMIN: ROLES, AGENCY: ['AGENT'], AGENT: ['STAFF'], STAFF: ['USER'] };
+
+function CreateForm({ actorRole, defaultRole, onDone }: { actorRole: string; defaultRole: string; onDone: () => void }) {
+  const allowed = CREATABLE[actorRole] ?? [];
+  const isAdmin = actorRole === 'SUPER_ADMIN';
+  const [role, setRole] = useState(allowed.includes(defaultRole) ? defaultRole : allowed[0] ?? 'AGENCY');
   const [parents, setParents] = useState<Account[]>([]);
   const [err, setErr] = useState('');
   useEffect(() => {
     const pr = PARENT[role];
-    if (pr === 'SUPER_ADMIN') { setParents([]); return; }
+    if (!isAdmin || pr === 'SUPER_ADMIN') { setParents([]); return; }
     api(`accounts?role=${pr}&limit=100`).then((r) => setParents(r.items));
   }, [role]);
 
@@ -30,8 +34,8 @@ function CreateForm({ defaultRole, onDone }: { defaultRole: string; onDone: () =
   }
   return (
     <form onSubmit={submit} className="card grid grid-cols-2 gap-3">
-      <select value={role} onChange={(e) => setRole(e.target.value)} className="input">{ROLES.map((r) => <option key={r}>{r}</option>)}</select>
-      {PARENT[role] !== 'SUPER_ADMIN'
+      <select value={role} onChange={(e) => setRole(e.target.value)} className="input">{allowed.map((r) => <option key={r}>{r}</option>)}</select>
+      {!isAdmin ? <div className="self-center text-sm text-slate-500">Will be created under your account</div> : PARENT[role] !== 'SUPER_ADMIN'
         ? <select name="parentId" className="input" required><option value="">Parent {PARENT[role]}…</option>{parents.map((p) => <option key={p.id} value={p.id}>{p.username} ({p.fullName})</option>)}</select>
         : <div className="self-center text-sm text-slate-500">Parent: Super Admin</div>}
       <input name="username" className="input" placeholder="Username" required />
@@ -51,6 +55,8 @@ function List() {
   const page = Math.max(1, +(sp.get('page') ?? 1));
   const [data, setData] = useState<{ items: Account[]; total: number } | null>(null);
   const [err, setErr] = useState(''); const [creating, setCreating] = useState(false);
+  const [me, setMe] = useState<{ role: string } | null>(null);
+  useEffect(() => { api('auth/me').then(setMe).catch(() => {}); }, []);
   const limit = 25;
 
   const load = useCallback(() => {
@@ -72,10 +78,10 @@ function List() {
         <h1 className="text-xl font-semibold">{role ? `${role[0]}${role.slice(1).toLowerCase()} accounts` : 'All accounts'}</h1>
         <div className="flex gap-2">
           <a className="btn btn-ghost" href={`/api/proxy/accounts/export.csv?${new URLSearchParams(Object.entries({ role, status, search }).filter(([, v]) => v) as [string, string][])}`}>Export CSV</a>
-          <button className="btn btn-primary" onClick={() => setCreating(!creating)}>{creating ? 'Close' : 'New account'}</button>
+          {me && (CREATABLE[me.role]?.length ?? 0) > 0 && <button className="btn btn-primary" onClick={() => setCreating(!creating)}>{creating ? 'Close' : `New ${CREATABLE[me.role].length === 1 ? CREATABLE[me.role][0].toLowerCase() : 'account'}`}</button>}
         </div>
       </div>
-      {creating && <CreateForm defaultRole={role || 'AGENCY'} onDone={() => { setCreating(false); load(); }} />}
+      {creating && me && <CreateForm actorRole={me.role} defaultRole={role || 'AGENCY'} onDone={() => { setCreating(false); load(); }} />}
       <div className="flex flex-wrap gap-2">
         <input defaultValue={search} placeholder="Search username, email, name…" className="input max-w-xs"
           onKeyDown={(e) => e.key === 'Enter' && set('search', (e.target as HTMLInputElement).value)} />
