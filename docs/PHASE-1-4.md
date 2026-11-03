@@ -254,3 +254,13 @@ that a restart with different values creates nothing. 4 unit tests. The seed scr
   closure-table rows and DB constraint); `apps/web/test-referrals.e2e.js` (19 browser checks).
 - Not built: referral links for agency/agent levels (users must sit under a staff member), bulk moves,
   moving accounts that have accounts below them, email verification at sign-up.
+
+## Mobile-friendly web admin
+- On phones the left menu becomes a slide-out drawer (☰ button in a top bar, red dot when there are unread
+  notifications; closes on navigation, outside tap or Escape). From the `md` breakpoint (768px) up the
+  layout is unchanged.
+- Forms stack to one column on phones, list headers wrap, inputs use 16px text (no iOS zoom), tap targets
+  are larger, tables scroll sideways inside their card instead of widening the page.
+- Verified with a 390×844 touch browser: no sideways page scrolling on 15 pages, drawer behaviour, input
+  widths (`apps/web/test-mobile-view.e2e.js`, 25 checks, 4 clean consecutive runs). Not tested on real
+  iOS/Android hardware or other browsers.

@@ -21,7 +21,7 @@ function ChangeLevel({ acc, onDone }: { acc: Account; onDone: () => void }) {
   return (
     <div className="card space-y-3"><h2 className="font-semibold">Change level / move</h2>
       <p className="text-xs text-slate-500">Only for accounts with nobody below them. The new parent must be one level above the chosen level.</p>
-      <div className="grid grid-cols-2 gap-2">
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
         <select className="input" value={role} onChange={(e) => setRole(e.target.value)} aria-label="New level">{LEVELS.filter((l) => l !== 'AGENCY').map((l) => <option key={l}>{l}</option>)}</select>
         <select className="input" value={parentId} onChange={(e) => setParentId(e.target.value)} aria-label="New parent"><option value="">Parent {PARENT_OF[role]}…</option>{parents.map((p) => <option key={p.id} value={p.id}>{p.fullName} (@{p.username})</option>)}</select>
       </div>

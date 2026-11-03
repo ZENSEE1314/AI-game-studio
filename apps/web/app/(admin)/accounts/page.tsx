@@ -33,7 +33,7 @@ function CreateForm({ actorRole, defaultRole, onDone }: { actorRole: string; def
     catch (x: any) { setErr(x.message); }
   }
   return (
-    <form onSubmit={submit} className="card grid grid-cols-2 gap-3">
+    <form onSubmit={submit} className="card grid grid-cols-1 gap-3 sm:grid-cols-2">
       <select value={role} onChange={(e) => setRole(e.target.value)} className="input">{allowed.map((r) => <option key={r}>{r}</option>)}</select>
       {!isAdmin ? <div className="self-center text-sm text-slate-500">Will be created under your account</div> : PARENT[role] !== 'SUPER_ADMIN'
         ? <select name="parentId" className="input" required><option value="">Parent {PARENT[role]}…</option>{parents.map((p) => <option key={p.id} value={p.id}>{p.username} ({p.fullName})</option>)}</select>
@@ -42,9 +42,9 @@ function CreateForm({ actorRole, defaultRole, onDone }: { actorRole: string; def
       <input name="fullName" className="input" placeholder="Full name" required />
       <input name="email" type="email" className="input" placeholder="Email" required />
       <input name="phone" className="input" placeholder="Phone (optional)" />
-      <input name="password" type="password" minLength={10} className="input col-span-2" placeholder="Password (min 10 chars)" required />
-      {err && <p className="col-span-2 text-sm text-red-600">{err}</p>}
-      <button className="btn btn-primary col-span-2">Create account</button>
+      <input name="password" type="password" minLength={10} className="input sm:col-span-2" placeholder="Password (min 10 chars)" required />
+      {err && <p className="text-sm text-red-600 sm:col-span-2">{err}</p>}
+      <button className="btn btn-primary sm:col-span-2">Create account</button>
     </form>
   );
 }
@@ -74,7 +74,7 @@ function List() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <h1 className="text-xl font-semibold">{role ? `${role[0]}${role.slice(1).toLowerCase()} accounts` : 'All accounts'}</h1>
         <div className="flex gap-2">
           <a className="btn btn-ghost" href={`/api/proxy/accounts/export.csv?${new URLSearchParams(Object.entries({ role, status, search }).filter(([, v]) => v) as [string, string][])}`}>Export CSV</a>
@@ -83,7 +83,7 @@ function List() {
       </div>
       {creating && me && <CreateForm actorRole={me.role} defaultRole={role || 'AGENCY'} onDone={() => { setCreating(false); load(); }} />}
       <div className="flex flex-wrap gap-2">
-        <input defaultValue={search} placeholder="Search username, email, name…" className="input max-w-xs"
+        <input defaultValue={search} placeholder="Search username, email, name…" className="input sm:max-w-xs"
           onKeyDown={(e) => e.key === 'Enter' && set('search', (e.target as HTMLInputElement).value)} />
         <select value={role} onChange={(e) => set('role', e.target.value)} className="input w-auto"><option value="">All roles</option>{ROLES.map((r) => <option key={r}>{r}</option>)}</select>
         <select value={status} onChange={(e) => set('status', e.target.value)} className="input w-auto"><option value="">Any status</option><option>ACTIVE</option><option>SUSPENDED</option></select>

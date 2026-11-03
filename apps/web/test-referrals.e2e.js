@@ -28,8 +28,7 @@ const ok = (n, c) => { console.log((c ? 'PASS ' : 'FAIL ') + n); if (!c) process
   // bad code
   const bad = await ctx(); await bad.goto(W + '/signup?ref=ZZZZZZZZ'); await bad.waitForSelector('text=not valid'); ok('bad code is flagged immediately', await bad.locator('button:has-text("Create account")').isDisabled());
   // sign-out/in as user
-  await pub.click('button:has-text("Sign out")'); await pub.waitForURL('**/login'); await signin(pub, u, PW); await pub.waitForURL('**/play'); ok('user can sign in again from the login page', true);
-  ok('login page links to sign-up', await pub.locator('a[href="/signup"]').count() > 0);
+  await pub.click('button:has-text("Sign out")'); await pub.waitForURL('**/login'); ok('login page links to sign-up', await pub.locator('a[href="/signup"]').count() > 0); await signin(pub, u, PW); await pub.waitForURL('**/play'); ok('user can sign in again from the login page', true);
 
   // agency / admin referral lists
   const agp = await ctx(); await signin(agp, 'wag' + t, PW); await agp.waitForURL('**/dashboard'); await agp.goto(W + '/referrals'); await agp.waitForSelector('tr:has-text("Wendy Staff")');

@@ -30,7 +30,7 @@ export default function Recon() {
     <div className="max-w-5xl space-y-4">
       <h1 className="text-xl font-semibold">{r.account.code} {r.account.name} <span className="text-base font-normal text-slate-500">statement {String(r.statementDate).slice(0, 10)} · {r.status}</span></h1>
       {err && <p className="rounded bg-red-50 p-2 text-sm text-red-700" role="alert">{err}</p>}{note && <p className="rounded bg-green-50 p-2 text-sm text-green-700">{note}</p>}
-      <dl className="card grid grid-cols-4 gap-2 text-sm">
+      <dl className="card grid grid-cols-2 gap-2 sm:grid-cols-4 text-sm">
         <div><dt className="text-slate-500">Opening</dt><dd>{money(r.openingBalance)}</dd></div>
         <div><dt className="text-slate-500">Cleared balance</dt><dd>{money(r.summary.clearedBalance)}</dd></div>
         <div><dt className="text-slate-500">Statement balance</dt><dd>{money(r.statementBalance)}</dd></div>
