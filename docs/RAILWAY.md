@@ -39,18 +39,20 @@ needs them), so don't create them. The mobile app is built with Expo, not Railwa
    serving.
 5. Do **not** generate a public domain for the API unless the mobile app needs it (it does, see step 7).
 
-## 3. Create the first Super Admin (one-time per environment)
-The production image has no dev tools, so run the seed from your own machine against the database's
-**public** URL (rw-postgres → Connect → Public Network; it is a different host than the private one):
+## 3. Create the first Super Admin (in the browser, no terminal)
+On the `rw-mobile-api` service open **Variables** and add all three:
 
-```bash
-cd apps/api && npm ci
-DATABASE_URL='<public postgres URL>' \
-SEED_ADMIN_USERNAME='<choose>' SEED_ADMIN_EMAIL='<your email>' \
-SEED_ADMIN_PASSWORD='<12+ chars, unique>' npm run seed
-```
-Then sign in to the admin and set up two-factor straight away. Remove the public-network access
-afterwards if your plan lets you.
+| Variable | Value |
+|---|---|
+| `BOOTSTRAP_ADMIN_USERNAME` | the name you want to sign in with (3–32 letters, digits, `.` `_` `-`) |
+| `BOOTSTRAP_ADMIN_EMAIL` | your email |
+| `BOOTSTRAP_ADMIN_PASSWORD` | a temporary password, at least 12 characters |
+
+Railway redeploys. On startup, **only if no Super Admin exists yet**, the API creates this account (logged as
+`Created first Super Admin ...`). It is marked "must change password": your first sign-in sends you to the
+Profile page to set a real password and enable two-factor. **Afterwards delete these three variables.**
+Leaving them is harmless (they are ignored once any admin exists) but the temporary password stays in
+Railway's settings. A wrong or partial set is ignored with a warning in the logs.
 
 ## 4. Web admin service
 1. **New** → **GitHub Repo** → same repo. Rename `rw-web-admin`. **Root Directory**: `apps/web`.
@@ -64,7 +66,7 @@ afterwards if your plan lets you.
    service. If requests fail with connection errors, set `HOST=::` on the API (private networking
    can be IPv6-only) and redeploy it.
 3. **Settings → Networking → Generate Domain**. This is your admin URL.
-4. Open it, sign in with the Super Admin from step 3.
+4. Open it and sign in with the username and temporary password from step 3.
 
 ## 5. Quick verification
 - `https://<web domain>/login` loads; sign in works; Dashboard shows counts.

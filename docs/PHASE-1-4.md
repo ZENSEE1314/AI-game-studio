@@ -224,3 +224,9 @@ anything of value this becomes gambling: do not do that with this code.
 - Not built: admin password reset by another admin (they can suspend and re-create), email
   invitations, 2FA recovery codes (losing the authenticator device currently needs a database fix),
   QR code rendering (the key is shown for manual entry).
+
+## First admin without a terminal
+`BOOTSTRAP_ADMIN_USERNAME/EMAIL/PASSWORD` (see `docs/RAILWAY.md` step 3): on startup, and only when no
+Super Admin exists, the API creates one with a temporary password that must be changed at first sign-in.
+Verified on an empty database (login → blocked until password change → change → full access) and
+that a restart with different values creates nothing. 4 unit tests. The seed script remains available.

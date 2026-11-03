@@ -6,6 +6,7 @@ import { IsEmail, IsString, Length, Matches, MinLength } from 'class-validator';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { AuthUser, CurrentUser, RequirePermissions } from '../common/decorators';
+import { BootstrapService } from './bootstrap.service';
 
 export class CreateAdminDto {
   @Matches(/^[a-zA-Z0-9_.-]{3,32}$/) username: string;
@@ -96,5 +97,5 @@ export class AdminsController {
   reactivate(@CurrentUser() u: AuthUser, @Param('id', ParseUUIDPipe) id: string, @Body() d: AdminActionDto, @Req() req: any) { return this.svc.reactivate(u, id, d, req.ip); }
 }
 
-@Module({ providers: [AdminsService], controllers: [AdminsController] })
+@Module({ providers: [AdminsService, BootstrapService], controllers: [AdminsController] })
 export class AdminsModule {}
