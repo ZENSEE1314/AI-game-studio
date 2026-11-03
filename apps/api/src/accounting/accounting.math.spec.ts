@@ -1,0 +1,47 @@
+import { Prisma } from '@prisma/client';
+import { balanceSheet, cleanLines, incomeStatement, trialBalance, BalanceRow } from './accounting.math';
+
+const D = (n: number) => new Prisma.Decimal(n);
+const row = (code: string, cls: BalanceRow['class'], debit: number, credit: number): BalanceRow => ({ code, name: code, class: cls, debit: D(debit), credit: D(credit) });
+
+describe('cleanLines', () => {
+  const l = (a: string, d?: string, c?: string) => ({ accountId: a, debit: d, credit: c });
+  it('accepts a balanced entry', () => expect(cleanLines([l('a', '100.50'), l('b', undefined, '100.50')])).toHaveLength(2));
+  it('rejects unbalanced', () => expect(() => cleanLines([l('a', '100'), l('b', undefined, '99.99')])).toThrow(/not balanced/));
+  it('rejects a single line', () => expect(() => cleanLines([l('a', '5')])).toThrow(/at least two/));
+  it('rejects both sides on one line', () => expect(() => cleanLines([l('a', '5', '5'), l('b', undefined, '5')])).toThrow(/exactly one/));
+  it('rejects zero lines', () => expect(() => cleanLines([l('a', '0'), l('b', '0')])).toThrow(/exactly one/));
+  it('rejects negatives and >2dp', () => {
+    expect(() => cleanLines([l('a', '-5'), l('b', undefined, '5')])).toThrow(/invalid/);
+    expect(() => cleanLines([l('a', '1.005'), l('b', undefined, '1.005')])).toThrow(/2 decimal/);
+  });
+  it('has no floating point drift', () => expect(() => cleanLines([l('a', '0.1'), l('a', '0.2'), l('b', undefined, '0.3')])).not.toThrow());
+});
+
+describe('reports', () => {
+  // Owner funds 1000; 300 revenue received in cash; 100 expense paid in cash => cash 1200.
+  const rows = [row('1000', 'ASSET', 1300, 100), row('3000', 'EQUITY', 0, 1000), row('4000', 'INCOME', 0, 300), row('5000', 'EXPENSE', 100, 0)];
+  it('trial balance balances', () => {
+    const t = trialBalance(rows);
+    expect(t.balanced).toBe(true);
+    expect(t.totalDebit.toFixed(2)).toBe('1300.00');
+    expect(t.totalCredit.toFixed(2)).toBe('1300.00');
+  });
+  it('income statement', () => {
+    const p = incomeStatement(rows);
+    expect(p.totalIncome.toFixed(2)).toBe('300.00');
+    expect(p.totalExpenses.toFixed(2)).toBe('100.00');
+    expect(p.netProfit.toFixed(2)).toBe('200.00');
+  });
+  it('balance sheet balances including current earnings', () => {
+    const b = balanceSheet(rows);
+    expect(b.totalAssets.toFixed(2)).toBe('1200.00');
+    expect(b.totalEquity.toFixed(2)).toBe('1200.00');
+    expect(b.balanced).toBe(true);
+  });
+  it('a reversal nets an entry to zero', () => {
+    const t = trialBalance([row('1000', 'ASSET', 500, 500), row('4000', 'INCOME', 500, 500)]);
+    expect(t.lines).toHaveLength(0);
+    expect(t.balanced).toBe(true);
+  });
+});

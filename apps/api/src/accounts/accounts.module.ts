@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Module, Param, ParseUUIDPipe, Post, Query, Req } from '@nestjs/common';
+import { Body, Controller, Get, Header, Module, Param, ParseUUIDPipe, Post, Query, Req } from '@nestjs/common';
 import { Role } from '@prisma/client';
 import { IsEmail, IsEnum, IsOptional, IsString, IsUUID, Length, Matches, MinLength } from 'class-validator';
 import { AccountsService } from './accounts.service';
@@ -31,6 +31,16 @@ export class AccountsController {
       status: status === 'ACTIVE' || status === 'SUSPENDED' ? status : undefined,
       search, parentId,
       page: Math.max(1, +page || 1), limit: Math.min(100, Math.max(1, +limit || 25)),
+    });
+  }
+
+  @Get('export.csv') @RequirePermissions('accounts:read')
+  @Header('content-type', 'text/csv; charset=utf-8') @Header('content-disposition', 'attachment; filename="accounts.csv"')
+  export(@CurrentUser() u: AuthUser, @Query('role') role?: Role, @Query('status') status?: 'ACTIVE' | 'SUSPENDED',
+         @Query('search') search?: string, @Query('parentId') parentId?: string) {
+    return this.svc.exportCsv(u, {
+      role: role && Object.values(Role).includes(role) ? role : undefined,
+      status: status === 'ACTIVE' || status === 'SUSPENDED' ? status : undefined, search, parentId,
     });
   }
 

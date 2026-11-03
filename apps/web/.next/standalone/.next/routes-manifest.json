@@ -39,6 +39,14 @@
   },
   "dynamicRoutes": [
     {
+      "page": "/accounting/[id]",
+      "regex": "^/accounting/([^/]+?)(?:/)?$",
+      "routeKeys": {
+        "nxtPid": "nxtPid"
+      },
+      "namedRegex": "^/accounting/(?<nxtPid>[^/]+?)(?:/)?$"
+    },
+    {
       "page": "/accounts/[id]",
       "regex": "^/accounts/([^/]+?)(?:/)?$",
       "routeKeys": {
@@ -67,6 +75,24 @@
       "regex": "^/_not\\-found(?:/)?$",
       "routeKeys": {},
       "namedRegex": "^/_not\\-found(?:/)?$"
+    },
+    {
+      "page": "/accounting",
+      "regex": "^/accounting(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/accounting(?:/)?$"
+    },
+    {
+      "page": "/accounting/reports",
+      "regex": "^/accounting/reports(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/accounting/reports(?:/)?$"
+    },
+    {
+      "page": "/accounting/setup",
+      "regex": "^/accounting/setup(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/accounting/setup(?:/)?$"
     },
     {
       "page": "/accounts",

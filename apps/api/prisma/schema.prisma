@@ -188,3 +188,111 @@ model AuditLog {
   @@index([action])
   @@map("audit_logs")
 }
+
+// ---------- ACCOUNTING (real company books; no relation to any in-app credit) ----------
+
+enum AccountClass {
+  ASSET
+  LIABILITY
+  EQUITY
+  INCOME
+  EXPENSE
+}
+
+enum JournalStatus {
+  DRAFT
+  PENDING_APPROVAL
+  APPROVED
+  POSTED
+  REVERSED
+}
+
+enum PeriodStatus {
+  OPEN
+  CLOSED
+}
+
+model ChartAccount {
+  id        String       @id @default(uuid()) @db.Uuid
+  code      String       @unique
+  name      String
+  class     AccountClass
+  isActive  Boolean      @default(true) @map("is_active")
+  createdAt DateTime     @default(now()) @map("created_at")
+
+  lines JournalEntryLine[]
+
+  @@index([class])
+  @@map("chart_of_accounts")
+}
+
+model AccountingPeriod {
+  id        String       @id @default(uuid()) @db.Uuid
+  name      String       @unique
+  startDate DateTime     @map("start_date") @db.Date
+  endDate   DateTime     @map("end_date") @db.Date
+  status    PeriodStatus @default(OPEN)
+  closedAt  DateTime?    @map("closed_at")
+  closedById String?     @map("closed_by_id") @db.Uuid
+
+  entries JournalEntry[]
+
+  @@index([startDate, endDate])
+  @@map("accounting_periods")
+}
+
+model JournalEntry {
+  id           String        @id @default(uuid()) @db.Uuid
+  reference    String        @unique
+  entryDate    DateTime      @map("entry_date") @db.Date
+  description  String
+  status       JournalStatus @default(DRAFT)
+  periodId     String        @map("period_id") @db.Uuid
+  createdById  String        @map("created_by_id") @db.Uuid
+  approvedById String?       @map("approved_by_id") @db.Uuid
+  postedAt     DateTime?     @map("posted_at")
+  reversesId   String?       @unique @map("reverses_id") @db.Uuid
+  createdAt    DateTime      @default(now()) @map("created_at")
+  updatedAt    DateTime      @updatedAt @map("updated_at")
+
+  period    AccountingPeriod   @relation(fields: [periodId], references: [id], onDelete: Restrict)
+  reverses  JournalEntry?      @relation("Reversal", fields: [reversesId], references: [id], onDelete: Restrict)
+  reversedBy JournalEntry?     @relation("Reversal")
+  lines     JournalEntryLine[]
+  approvals FinancialApproval[]
+
+  @@index([status, entryDate])
+  @@index([periodId])
+  @@map("journal_entries")
+}
+
+model JournalEntryLine {
+  id          String   @id @default(uuid()) @db.Uuid
+  entryId     String   @map("entry_id") @db.Uuid
+  accountId   String   @map("account_id") @db.Uuid
+  debit       Decimal  @default(0) @db.Decimal(18, 2)
+  credit      Decimal  @default(0) @db.Decimal(18, 2)
+  description String?
+
+  entry   JournalEntry @relation(fields: [entryId], references: [id], onDelete: Restrict)
+  account ChartAccount @relation(fields: [accountId], references: [id], onDelete: Restrict)
+
+  @@index([entryId])
+  @@index([accountId])
+  @@map("journal_entry_lines")
+}
+
+/// Every workflow transition (submit / approve / reject / post / reverse), append-only.
+model FinancialApproval {
+  id        String   @id @default(uuid()) @db.Uuid
+  entryId   String   @map("entry_id") @db.Uuid
+  action    String
+  actorId   String   @map("actor_id") @db.Uuid
+  comment   String?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  entry JournalEntry @relation(fields: [entryId], references: [id], onDelete: Restrict)
+
+  @@index([entryId, createdAt])
+  @@map("financial_approvals")
+}

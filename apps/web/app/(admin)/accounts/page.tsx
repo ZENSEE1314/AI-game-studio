@@ -70,7 +70,10 @@ function List() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-semibold">{role ? `${role[0]}${role.slice(1).toLowerCase()} accounts` : 'All accounts'}</h1>
-        <button className="btn btn-primary" onClick={() => setCreating(!creating)}>{creating ? 'Close' : 'New account'}</button>
+        <div className="flex gap-2">
+          <a className="btn btn-ghost" href={`/api/proxy/accounts/export.csv?${new URLSearchParams(Object.entries({ role, status, search }).filter(([, v]) => v) as [string, string][])}`}>Export CSV</a>
+          <button className="btn btn-primary" onClick={() => setCreating(!creating)}>{creating ? 'Close' : 'New account'}</button>
+        </div>
       </div>
       {creating && <CreateForm defaultRole={role || 'AGENCY'} onDone={() => { setCreating(false); load(); }} />}
       <div className="flex flex-wrap gap-2">

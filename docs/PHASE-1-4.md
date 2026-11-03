@@ -89,3 +89,27 @@ API=http://localhost:3000/api/v1 ADMIN_PASSWORD=... ./test/smoke.sh
 - Not built: Wallet, Demonstration, CCTV, History tabs, push notifications (later phases).
 - API change: `GET /auth/me` now returns the full profile. Login rate limit is configurable with
   `LOGIN_RATE_LIMIT` (default 10/min per IP).
+
+## Accounting module (`/api/v1/accounting`, Super Admin only)
+Real company books, fully separate from any in-app balance. Double-entry with `Decimal(18,2)`.
+- Tables: chart_of_accounts, accounting_periods, journal_entries, journal_entry_lines,
+  financial_approvals (migration `20261103010000_accounting`).
+- Workflow: DRAFT → PENDING_APPROVAL → APPROVED → POSTED → REVERSED. Rejection returns to DRAFT.
+  Every transition is state-checked atomically and written to the approval trail and audit log.
+- Segregation of duties: the creator cannot approve their own entry. **With a single Super Admin
+  nobody can approve**; either add a second Super Admin or set `ACCOUNTING_ALLOW_SELF_APPROVAL=true`
+  (not recommended for production).
+- Immutability is enforced in PostgreSQL triggers, not just the API: lines can't change once an entry
+  leaves DRAFT, posted entries can only become REVERSED, entries can't be deleted, a post requires
+  ≥2 lines with debit = credit, the approval trail is append-only. Corrections are reversal entries.
+- Periods can't overlap, can't close with unposted entries, and block posting once closed.
+- Reports: trial balance, profit & loss, balance sheet (posted entries; reversals net to zero), CSV
+  export with spreadsheet-formula neutralisation.
+- Web: journal list/create, entry detail with workflow buttons, chart & periods, reports.
+- Not built: cash flow statement, reconciliation, agency statements, adjustments, Excel/PDF export.
+
+## Admin additions
+- `GET /accounts/export.csv` (same scoping/filters as the list) and an Export CSV button.
+- Account detail shows the parent link and direct subordinates for drill-down.
+- Tests: 25 unit tests; `test/accounting-smoke.sh` (30 checks incl. 5 direct-SQL immutability
+  checks and, with `EXPECT_SOD=1`, the segregation-of-duties refusal); a 13-check browser run.

@@ -1,4 +1,5 @@
 'use client';
+import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
 import { Account, api, fmt } from '@/lib/client';
@@ -9,13 +10,20 @@ export default function Detail() {
   const { id } = useParams<{ id: string }>();
   const [acc, setAcc] = useState<Account | null>(null);
   const [hist, setHist] = useState<any[]>([]);
+  const [kids, setKids] = useState<Account[]>([]);
+  const [parent, setParent] = useState<Account | null>(null);
   const [preview, setPreview] = useState<Preview | null>(null);
   const [mode, setMode] = useState<'suspend' | 'reactivate' | null>(null);
   const [reason, setReason] = useState('');
   const [err, setErr] = useState(''); const [msg, setMsg] = useState('');
 
   const load = useCallback(() => {
-    api(`accounts/${id}`).then(setAcc).catch((e) => setErr(e.message));
+    api(`accounts/${id}`).then((a: Account) => {
+      setAcc(a);
+      setParent(null);
+      if (a.parentId) api(`accounts/${a.parentId}`).then(setParent).catch(() => {});
+    }).catch((e) => setErr(e.message));
+    api(`accounts?parentId=${id}&limit=100`).then((r) => setKids(r.items)).catch(() => {});
     api(`accounts/${id}/history`).then(setHist).catch(() => {});
   }, [id]);
   useEffect(load, [load]);
@@ -42,6 +50,7 @@ export default function Detail() {
   ];
   return (
     <div className="max-w-3xl space-y-4">
+      {parent && <Link className="text-sm text-indigo-600 hover:underline" href={`/accounts/${parent.id}`}>↑ {parent.role.toLowerCase()} {parent.username}</Link>}
       <h1 className="text-xl font-semibold">{acc.fullName} <span className="text-base font-normal text-slate-500">@{acc.username}</span></h1>
       {msg && <p className="rounded bg-green-50 p-2 text-sm text-green-700">{msg}</p>}
       {err && <p className="rounded bg-red-50 p-2 text-sm text-red-700" role="alert">{err}</p>}
@@ -69,6 +78,14 @@ export default function Detail() {
         </div>
       )}
 
+      {kids.length > 0 && (
+        <div className="card">
+          <div className="mb-2 flex items-center justify-between"><h2 className="font-semibold">Direct subordinates ({kids.length})</h2>
+            <a className="btn btn-ghost" href={`/api/proxy/accounts/export.csv?parentId=${id}`}>Export CSV</a></div>
+          <ul className="space-y-1 text-sm">{kids.map((k) => (
+            <li key={k.id}><Link className="text-indigo-600 hover:underline" href={`/accounts/${k.id}`}>{k.username}</Link>
+              {' '}<span className="text-slate-500">{k.role.toLowerCase()} · {k.status.toLowerCase()}</span></li>))}</ul>
+        </div>)}
       <div className="card">
         <h2 className="mb-2 font-semibold">Status history</h2>
         {hist.length === 0 ? <p className="text-sm text-slate-500">No changes yet</p> : (

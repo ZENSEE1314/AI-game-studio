@@ -3,6 +3,7 @@ import * as bcrypt from 'bcryptjs';
 import { Prisma, Role } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
+import { toCsv } from '../common/csv';
 import { AuthUser } from '../common/decorators';
 import { creatableRoles, deriveChain, isValidParent } from '../common/hierarchy';
 
@@ -104,6 +105,16 @@ export class AccountsService {
       this.prisma.user.count({ where }),
     ]);
     return { items, total, page: q.page, limit: q.limit };
+  }
+
+  /** Same scoping and filters as list(); capped to protect the server. */
+  async exportCsv(actor: AuthUser, q: { role?: Role; status?: 'ACTIVE' | 'SUSPENDED'; search?: string; parentId?: string }) {
+    const { items } = await this.list(actor, { ...q, page: 1, limit: 5000 });
+    const iso = (d: Date | null) => (d ? d.toISOString() : '');
+    return toCsv([
+      ['Username', 'Full name', 'Email', 'Phone', 'Role', 'Status', 'Suspension reason', 'Last login', 'Created'],
+      ...items.map((u) => [u.username, u.fullName, u.email, u.phone, u.role, u.status, u.suspensionReason, iso(u.lastLogin), iso(u.createdAt)]),
+    ]);
   }
 
   get(actor: AuthUser, id: string) {

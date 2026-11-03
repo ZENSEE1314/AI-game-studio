@@ -20,4 +20,6 @@ export type Account = {
   parentId: string | null; status: 'ACTIVE' | 'SUSPENDED'; suspendedAt: string | null;
   suspensionReason: string | null; lastLogin: string | null; createdAt: string;
 };
+export type ChartAccount = { id: string; code: string; name: string; class: string; isActive: boolean };
+export const money = (v: string | number) => Number(v).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 export const fmt = (d?: string | null) => (d ? new Date(d).toLocaleString() : '—');

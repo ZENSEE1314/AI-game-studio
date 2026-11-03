@@ -30,6 +30,8 @@ async function handle(req: Request, { params }: { params: Promise<{ path: string
       await clearSession();
     }
   }
-  return new NextResponse(await r.text(), { status: r.status, headers: { 'content-type': 'application/json' } });
+  const headers: Record<string, string> = { 'content-type': r.headers.get('content-type') ?? 'application/json' };
+  const cd = r.headers.get('content-disposition'); if (cd) headers['content-disposition'] = cd;
+  return new NextResponse(await r.text(), { status: r.status, headers });
 }
-export { handle as GET, handle as POST, handle as PUT };
+export { handle as GET, handle as POST, handle as PUT, handle as PATCH };
