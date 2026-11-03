@@ -63,3 +63,15 @@ API=http://localhost:3000/api/v1 ADMIN_PASSWORD=... ./test/smoke.sh
 - `admin_activity_logs` table (audit_logs covers admin actions for now).
 - Permissions are code-defined; DB tables are seeded copies, not runtime-editable.
 - Railway: Dockerfile + railway.json only; services/environments not created.
+
+## Web admin (`apps/web`, Next.js 15 + Tailwind)
+- Pages: login (with 2FA prompt), dashboard, accounts (search/role/status filters, pagination,
+  create), account detail (suspend/reactivate with affected-count confirmation, status history),
+  system status (maintenance), audit log. Agency/Agent/Staff/User sidebar entries are filtered views.
+- Super Admin only: non-admin logins are rejected and their session revoked immediately.
+- Tokens live in httpOnly, SameSite=Strict cookies; the browser talks to a same-origin proxy
+  (`/api/proxy/*`) that attaches the token and refreshes it. State-changing requests require a
+  matching `Origin`. The API remains the sole authority for authorization.
+- Verified with a headless-browser run (14 checks) against the real API + PostgreSQL.
+- Run: `cd apps/web && API_URL=http://localhost:3000/api/v1 npm run dev`.
+- Not built yet: sidebar sections for later phases (wallet, accounting, commission, CCTV, etc.).
