@@ -345,3 +345,99 @@ model ReconciliationItem {
   @@index([reconId])
   @@map("reconciliation_items")
 }
+
+// ---------- INTERNAL GAME (in-game credits only: no cash value, not purchasable, not withdrawable) ----------
+
+enum LedgerKind {
+  GRANT
+  HOLD
+  RELEASE
+}
+
+enum RoundStatus {
+  DRAFT
+  OPEN
+  LOCKED
+  RESULT_PENDING
+  COMPLETED
+  CANCELLED
+}
+
+model Wallet {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @unique @map("user_id") @db.Uuid
+  balance   BigInt   @default(0)
+  held      BigInt   @default(0)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  ledger WalletLedger[]
+
+  @@map("wallets")
+}
+
+/// Append-only. Every balance change is one row with the resulting balances.
+model WalletLedger {
+  id             String     @id @default(uuid()) @db.Uuid
+  walletId       String     @map("wallet_id") @db.Uuid
+  kind           LedgerKind
+  amount         BigInt
+  balanceAfter   BigInt     @map("balance_after")
+  heldAfter      BigInt     @map("held_after")
+  ref            String?
+  idempotencyKey String?    @unique @map("idempotency_key")
+  createdById    String?    @map("created_by_id") @db.Uuid
+  createdAt      DateTime   @default(now()) @map("created_at")
+
+  wallet Wallet @relation(fields: [walletId], references: [id], onDelete: Restrict)
+
+  @@index([walletId, createdAt])
+  @@map("wallet_ledger")
+}
+
+model GameRound {
+  id            String      @id @default(uuid()) @db.Uuid
+  name          String
+  status        RoundStatus @default(DRAFT)
+  minStake      BigInt      @default(10000) @map("min_stake")
+  pendingNumber Int?        @map("pending_number")
+  createdById   String      @map("created_by_id") @db.Uuid
+  openedAt      DateTime?   @map("opened_at")
+  lockedAt      DateTime?   @map("locked_at")
+  createdAt     DateTime    @default(now()) @map("created_at")
+
+  selections NumberSelection[]
+  result     RoundResult?
+
+  @@index([status, createdAt])
+  @@map("game_rounds")
+}
+
+model NumberSelection {
+  id        String   @id @default(uuid()) @db.Uuid
+  roundId   String   @map("round_id") @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  number    Int
+  stake     BigInt
+  released  Boolean  @default(false)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  round GameRound @relation(fields: [roundId], references: [id], onDelete: Restrict)
+
+  @@unique([roundId, userId, number])
+  @@index([userId])
+  @@index([roundId, number])
+  @@map("number_selections")
+}
+
+/// Immutable once written. Corrections would be a separate, audited admin action (not built).
+model RoundResult {
+  roundId     String   @id @map("round_id") @db.Uuid
+  number      Int
+  publishedBy String   @map("published_by") @db.Uuid
+  publishedAt DateTime @default(now()) @map("published_at")
+
+  round GameRound @relation(fields: [roundId], references: [id], onDelete: Restrict)
+
+  @@map("round_results")
+}

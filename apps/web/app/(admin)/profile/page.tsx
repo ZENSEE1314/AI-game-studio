@@ -8,9 +8,9 @@ export default function Profile() {
 
   async function change(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault(); setErr(''); setNote('');
-    const f = new FormData(e.currentTarget);
+    const form = e.currentTarget; const f = new FormData(form);
     if (f.get('newPassword') !== f.get('confirm')) { setErr('New passwords do not match'); return; }
-    try { await api('auth/change-password', { method: 'POST', body: { currentPassword: f.get('currentPassword'), newPassword: f.get('newPassword') } }); setNote('Password changed. Other devices were signed out.'); e.currentTarget.reset(); }
+    try { await api('auth/change-password', { method: 'POST', body: { currentPassword: f.get('currentPassword'), newPassword: f.get('newPassword') } }); setNote('Password changed. Other devices were signed out.'); form.reset(); }
     catch (x: any) { setErr(x.message); }
   }
   return (

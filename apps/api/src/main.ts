@@ -5,6 +5,9 @@ import { NestExpressApplication } from '@nestjs/platform-express';
 import helmet from 'helmet';
 import { AppModule } from './app.module';
 
+// Credits are whole numbers well below 2^53; serialise BigInt columns as JSON numbers.
+(BigInt.prototype as any).toJSON = function () { return Number(this); };
+
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
   app.setGlobalPrefix('api/v1');

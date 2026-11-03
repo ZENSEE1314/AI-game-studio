@@ -152,3 +152,32 @@ Real company books, fully separate from any in-app balance. Double-entry with `D
   Mobile: TypeScript + Android bundle only; still not run on a device.
 - Not built for these roles: demo-credit allocation and commission reports (those belong to the
   wallet/commission features that were not built), CCTV, notifications.
+
+## Internal game: in-game credits, rounds and winners
+**Scope guardrails (deliberate):** credits are an internal allowance with **no cash value**. They are
+granted only by a Super Admin; there is no purchase, deposit, withdrawal or transfer endpoint
+(tests assert these paths do not exist); credits are **never lost** (picks are held while a round is
+open and every hold is released at publish or cancel); there are no commissions or payouts; and the
+game is not connected to the accounting module. If credits are ever sold, redeemed or exchanged for
+anything of value this becomes gambling: do not do that with this code.
+
+- **Wallet** (`/wallet`): `me`, `me/ledger`, `grant` (Super Admin, idempotent via key), `balances`.
+  Append-only ledger (GRANT/HOLD/RELEASE) with balance snapshots; DB constraints forbid negative
+  balances; a test verifies every wallet equals the sum of its ledger.
+- **Rounds** (`/game`): DRAFT → OPEN → LOCKED → RESULT_PENDING → COMPLETED (or CANCELLED).
+  Admin: create (configurable minimum per number, default 10,000), open, lock, set result 1–27
+  (preview shows who would win; players cannot see it), publish, cancel. Players: pick any set of
+  numbers 1–27 with credits each, edit freely while OPEN (atomic replace), see results, history
+  and a leaderboard of rounds won. Published results are immutable (DB trigger); the round state
+  machine and "no picks after lock" are enforced in PostgreSQL as well as the API. Maintenance
+  mode blocks players. Super Admin cannot play.
+- **Web:** Super Admin gets Game Rounds (create, lifecycle, picks-by-number chart, preview, publish)
+  and Credits (grant + balances). Agency/Agent/Staff get Play (number grid, stakes, live balance,
+  results, leaderboard, history). **Mobile:** Play tab for everyone.
+- **Tests:** 6 new unit tests; `test/game-smoke.sh` (64 checks, incl. a concurrent-submission race,
+  cancel/refund, role and maintenance checks, 8 direct-SQL guard checks, ledger reconciliation);
+  `apps/web/test-game.e2e.js` (20 browser checks: admin and two players through grant, open,
+  pick, lock, preview, publish). Browser testing found and fixed a form-reset crash.
+- **Not built:** correcting a published result (would need a separate audited action), grants by
+  Agency/Agent/Staff (Super Admin only), commissions, notifications, round schedules/timers.
+  The mobile app is verified by type-check and bundle only, never run on a device.

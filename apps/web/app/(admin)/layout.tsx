@@ -12,9 +12,9 @@ const ACCOUNTS: Record<string, Nav[]> = {
   AGENT: [['All downline', '/accounts'], ['My staff', '/accounts?role=STAFF'], ['Users', '/accounts?role=USER']],
   STAFF: [['My users', '/accounts?role=USER']],
 };
-const ADMIN_ONLY: Nav[] = [['Accounting', '/accounting'], ['Chart & Periods', '/accounting/setup'], ['Financial Reports', '/accounting/reports'],
+const ADMIN_ONLY: Nav[] = [['Game Rounds', '/game'], ['Credits', '/credits'], ['Accounting', '/accounting'], ['Chart & Periods', '/accounting/setup'], ['Financial Reports', '/accounting/reports'],
   ['Reconciliation', '/accounting/reconciliation'], ['System Settings', '/system'], ['Audit Logs', '/audit']];
-const navFor = (role: string): Nav[] => [['Dashboard', '/dashboard'], ...(ACCOUNTS[role] ?? []), ...(role === 'SUPER_ADMIN' ? ADMIN_ONLY : []), ['My profile', '/profile']];
+const navFor = (role: string): Nav[] => [['Dashboard', '/dashboard'], ...(role === 'SUPER_ADMIN' ? [] : ([['Play', '/play']] as Nav[])), ...(ACCOUNTS[role] ?? []), ...(role === 'SUPER_ADMIN' ? ADMIN_ONLY : []), ['My profile', '/profile']];
 const adminOnlyPath = (p: string) => ADMIN_ONLY.some(([, h]) => p === h || p.startsWith(h + '/'));
 
 function Sidebar({ role, name }: { role: string; name: string }) {
@@ -44,7 +44,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const [me, setMe] = useState<{ role: string; fullName: string } | null>(null);
   const path = usePathname();
   useEffect(() => { api('auth/me').then(setMe).catch(() => {}); }, []);
-  useEffect(() => { if (me && me.role !== 'SUPER_ADMIN' && adminOnlyPath(path)) window.location.replace('/dashboard'); }, [me, path]);
+  useEffect(() => { if (me && me.role !== 'SUPER_ADMIN' && adminOnlyPath(path)) window.location.replace('/dashboard');
+    if (me && me.role === 'SUPER_ADMIN' && path.startsWith('/play')) window.location.replace('/game'); }, [me, path]);
   if (!me) return <div className="p-6 text-slate-500">Loading…</div>;
   return (
     <div className="flex min-h-screen">

@@ -6,15 +6,19 @@
   "/login/page": "app/login/page.js",
   "/page": "app/page.js",
   "/(admin)/accounting/[id]/page": "app/(admin)/accounting/[id]/page.js",
-  "/(admin)/accounting/reconciliation/[id]/page": "app/(admin)/accounting/reconciliation/[id]/page.js",
-  "/(admin)/accounting/page": "app/(admin)/accounting/page.js",
   "/(admin)/accounting/reconciliation/page": "app/(admin)/accounting/reconciliation/page.js",
+  "/(admin)/accounting/page": "app/(admin)/accounting/page.js",
+  "/(admin)/accounting/reconciliation/[id]/page": "app/(admin)/accounting/reconciliation/[id]/page.js",
   "/(admin)/accounting/reports/page": "app/(admin)/accounting/reports/page.js",
   "/(admin)/accounting/setup/page": "app/(admin)/accounting/setup/page.js",
   "/(admin)/accounts/[id]/page": "app/(admin)/accounts/[id]/page.js",
   "/(admin)/accounts/page": "app/(admin)/accounts/page.js",
   "/(admin)/audit/page": "app/(admin)/audit/page.js",
+  "/(admin)/credits/page": "app/(admin)/credits/page.js",
   "/(admin)/dashboard/page": "app/(admin)/dashboard/page.js",
-  "/(admin)/profile/page": "app/(admin)/profile/page.js",
-  "/(admin)/system/page": "app/(admin)/system/page.js"
+  "/(admin)/game/[id]/page": "app/(admin)/game/[id]/page.js",
+  "/(admin)/game/page": "app/(admin)/game/page.js",
+  "/(admin)/play/page": "app/(admin)/play/page.js",
+  "/(admin)/system/page": "app/(admin)/system/page.js",
+  "/(admin)/profile/page": "app/(admin)/profile/page.js"
 }
