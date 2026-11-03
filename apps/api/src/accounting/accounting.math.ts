@@ -57,3 +57,46 @@ export function balanceSheet(rows: BalanceRow[]) {
     balanced: totalAssets.equals(totalLiabilities.plus(totalEquity)),
   };
 }
+
+// ---------- cash flow (direct method) ----------
+export type Activity = 'OPERATING' | 'INVESTING' | 'FINANCING';
+/** Explicit setting wins; otherwise equity is financing and everything else operating. */
+export const effectiveActivity = (cls: AccountClass, explicit: Activity | null): Activity =>
+  explicit ?? (cls === 'EQUITY' ? 'FINANCING' : 'OPERATING');
+
+export interface CashCounterRow {
+  code: string; name: string; class: AccountClass; activity: Activity | null;
+  inflow: Prisma.Decimal; // credits on the counter-account in cash-touching entries
+  outflow: Prisma.Decimal; // debits on the counter-account in cash-touching entries
+}
+
+/**
+ * Each non-cash line of an entry that moves cash explains part of the cash movement:
+ * credit = cash came in, debit = cash went out. Sections sum to the net change in cash.
+ */
+export function cashFlow(rows: CashCounterRow[], openingCash: Prisma.Decimal, closingCash: Prisma.Decimal) {
+  const sections: Record<Activity, { code: string; name: string; inflow: Prisma.Decimal; outflow: Prisma.Decimal; net: Prisma.Decimal }[]> = { OPERATING: [], INVESTING: [], FINANCING: [] };
+  for (const r of rows) {
+    const net = r.inflow.minus(r.outflow);
+    if (net.isZero() && r.inflow.isZero()) continue;
+    sections[effectiveActivity(r.class, r.activity)].push({ code: r.code, name: r.name, inflow: r.inflow, outflow: r.outflow, net });
+  }
+  (Object.keys(sections) as Activity[]).forEach((k) => sections[k].sort((a, b) => a.code.localeCompare(b.code)));
+  const total = (k: Activity) => sections[k].reduce((a, l) => a.plus(l.net), ZERO);
+  const operating = total('OPERATING'), investing = total('INVESTING'), financing = total('FINANCING');
+  const netChange = operating.plus(investing).plus(financing);
+  return {
+    sections, operating, investing, financing, netChange, openingCash, closingCash,
+    reconciles: openingCash.plus(netChange).equals(closingCash),
+  };
+}
+
+// ---------- bank reconciliation ----------
+/** Book effect of a line on a cash (debit-normal) account. */
+export const lineEffect = (l: { debit: Prisma.Decimal; credit: Prisma.Decimal }) => l.debit.minus(l.credit);
+
+export function reconciliationSummary(opening: Prisma.Decimal, statementBalance: Prisma.Decimal, cleared: { debit: Prisma.Decimal; credit: Prisma.Decimal }[]) {
+  const clearedBalance = cleared.reduce((a, l) => a.plus(lineEffect(l)), opening);
+  const difference = statementBalance.minus(clearedBalance);
+  return { clearedBalance, difference, reconciled: difference.isZero() };
+}

@@ -7,10 +7,12 @@
   "/page": "/",
   "/(admin)/accounting/[id]/page": "/accounting/[id]",
   "/(admin)/accounting/page": "/accounting",
+  "/(admin)/accounting/reconciliation/[id]/page": "/accounting/reconciliation/[id]",
+  "/(admin)/accounting/reconciliation/page": "/accounting/reconciliation",
   "/(admin)/accounting/reports/page": "/accounting/reports",
   "/(admin)/accounting/setup/page": "/accounting/setup",
-  "/(admin)/accounts/[id]/page": "/accounts/[id]",
   "/(admin)/accounts/page": "/accounts",
+  "/(admin)/accounts/[id]/page": "/accounts/[id]",
   "/(admin)/audit/page": "/audit",
   "/(admin)/dashboard/page": "/dashboard",
   "/(admin)/system/page": "/system"

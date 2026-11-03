@@ -106,10 +106,31 @@ Real company books, fully separate from any in-app balance. Double-entry with `D
 - Reports: trial balance, profit & loss, balance sheet (posted entries; reversals net to zero), CSV
   export with spreadsheet-formula neutralisation.
 - Web: journal list/create, entry detail with workflow buttons, chart & periods, reports.
-- Not built: cash flow statement, reconciliation, agency statements, adjustments, Excel/PDF export.
+- Not built: agency statements, adjustments, Excel/PDF export.
 
 ## Admin additions
 - `GET /accounts/export.csv` (same scoping/filters as the list) and an Export CSV button.
 - Account detail shows the parent link and direct subordinates for drill-down.
 - Tests: 25 unit tests; `test/accounting-smoke.sh` (30 checks incl. 5 direct-SQL immutability
   checks and, with `EXPECT_SOD=1`, the segregation-of-duties refusal); a 13-check browser run.
+
+## Cash flow statement & bank reconciliation
+- **Cash accounts:** an ASSET account can be flagged `isCash` (`PATCH /accounting/accounts/:id/cash-settings`).
+  The flag is locked by a DB trigger once the account has journal lines, so flag cash accounts *before*
+  posting to them. Other accounts get a cash-flow section (operating / investing / financing); unset
+  defaults to financing for equity and operating for everything else.
+- **Cash flow (direct method)** `GET /accounting/reports/cash-flow?from&to` (+ `/export.csv`): every
+  non-cash line of an entry that moves cash explains part of the movement (credit = inflow, debit =
+  outflow). Entries that don't touch cash (non-cash revaluations, transfers between cash accounts)
+  are excluded. The result reports opening cash + net change = closing cash and flags if it doesn't.
+- **Reconciliation:** start a draft for a cash account with the statement date and ending balance, mark
+  posted ledger lines as cleared, and complete only when the cleared balance equals the statement
+  (difference exactly 0). One open draft per account; statement dates must advance; a line can be
+  cleared once, ever. The preparer cannot complete their own reconciliation (same
+  `ACCOUNTING_ALLOW_SELF_APPROVAL` switch). Completed reconciliations are frozen by DB triggers.
+  `GET /accounting/reconciliations/status` shows book balance and unreconciled line count per account.
+- Web: Financial Reports gains Cash flow; new Reconciliation pages; Chart & Periods has cash toggles.
+- Tests: 30 unit tests; `test/cashflow-recon-smoke.sh` (29 checks incl. 4 direct-SQL immutability
+  checks); a 10-check browser run. Browser testing found and fixed a crash when switching report types.
+- Not built: importing bank statement files, auto-matching, discrepancy notifications (the
+  notifications module doesn't exist yet), multi-currency.

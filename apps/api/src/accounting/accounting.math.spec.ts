@@ -45,3 +45,34 @@ describe('reports', () => {
     expect(t.balanced).toBe(true);
   });
 });
+
+import { cashFlow, effectiveActivity, reconciliationSummary } from './accounting.math';
+describe('cash flow', () => {
+  const r = (code: string, cls: any, activity: any, inflow: number, outflow: number) => ({ code, name: code, class: cls, activity, inflow: D(inflow), outflow: D(outflow) });
+  it('defaults activity by class', () => {
+    expect(effectiveActivity('EQUITY', null)).toBe('FINANCING');
+    expect(effectiveActivity('INCOME', null)).toBe('OPERATING');
+    expect(effectiveActivity('ASSET', 'INVESTING')).toBe('INVESTING');
+  });
+  it('sections sum to net change and reconcile to closing cash', () => {
+    const cf = cashFlow([r('3000', 'EQUITY', null, 1000, 0), r('4000', 'INCOME', null, 300, 0), r('5000', 'EXPENSE', null, 0, 100), r('1500', 'ASSET', 'INVESTING', 0, 400)], D(50), D(850));
+    expect(cf.operating.toFixed(2)).toBe('200.00');
+    expect(cf.investing.toFixed(2)).toBe('-400.00');
+    expect(cf.financing.toFixed(2)).toBe('1000.00');
+    expect(cf.netChange.toFixed(2)).toBe('800.00');
+    expect(cf.reconciles).toBe(true);
+  });
+  it('flags a mismatch', () => expect(cashFlow([r('4000', 'INCOME', null, 10, 0)], D(0), D(11)).reconciles).toBe(false));
+});
+describe('reconciliation', () => {
+  it('matches when cleared lines explain the statement', () => {
+    const s = reconciliationSummary(D(1000), D(1250), [{ debit: D(300), credit: D(0) }, { debit: D(0), credit: D(50) }]);
+    expect(s.clearedBalance.toFixed(2)).toBe('1250.00');
+    expect(s.reconciled).toBe(true);
+  });
+  it('reports the difference', () => {
+    const s = reconciliationSummary(D(0), D(100), [{ debit: D(90), credit: D(0) }]);
+    expect(s.difference.toFixed(2)).toBe('10.00');
+    expect(s.reconciled).toBe(false);
+  });
+});

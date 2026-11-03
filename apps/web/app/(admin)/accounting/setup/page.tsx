@@ -25,6 +25,9 @@ export default function Setup() {
           </form>
           <div className="card p-0"><table className="w-full text-sm"><tbody>{accts.map((a) => (
             <tr key={a.id} className="border-b last:border-0"><td className="px-3 py-2">{a.code}</td><td className="px-3 py-2">{a.name}</td><td className="px-3 py-2 text-slate-500">{a.class}</td>
+              <td className="px-3 py-2">{a.class === 'ASSET' && <label className="text-xs text-slate-600"><input type="checkbox" checked={a.isCash} onChange={(e) => api(`accounting/accounts/${a.id}/cash-settings`, { method: 'PATCH', body: { isCash: e.target.checked } }).then(load).catch((x) => setErr(x.message))} /> cash</label>}
+                {!a.isCash && <select className="ml-1 text-xs" value={a.cashFlowActivity ?? ''} title="Cash flow section" onChange={(e) => api(`accounting/accounts/${a.id}/cash-settings`, { method: 'PATCH', body: { cashFlowActivity: e.target.value || null } }).then(load)}>
+                  <option value="">auto</option><option value="OPERATING">operating</option><option value="INVESTING">investing</option><option value="FINANCING">financing</option></select>}</td>
               <td className="px-3 py-2 text-right"><button className="text-xs text-indigo-600" onClick={() => api(`accounting/accounts/${a.id}`, { method: 'PATCH', body: { isActive: !a.isActive } }).then(load)}>{a.isActive ? 'Deactivate' : 'Activate'}</button></td></tr>))}</tbody></table></div>
         </div>
         <div className="space-y-3">

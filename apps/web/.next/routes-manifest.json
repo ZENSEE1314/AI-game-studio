@@ -39,6 +39,14 @@
   },
   "dynamicRoutes": [
     {
+      "page": "/accounting/reconciliation/[id]",
+      "regex": "^/accounting/reconciliation/([^/]+?)(?:/)?$",
+      "routeKeys": {
+        "nxtPid": "nxtPid"
+      },
+      "namedRegex": "^/accounting/reconciliation/(?<nxtPid>[^/]+?)(?:/)?$"
+    },
+    {
       "page": "/accounting/[id]",
       "regex": "^/accounting/([^/]+?)(?:/)?$",
       "routeKeys": {
@@ -81,6 +89,12 @@
       "regex": "^/accounting(?:/)?$",
       "routeKeys": {},
       "namedRegex": "^/accounting(?:/)?$"
+    },
+    {
+      "page": "/accounting/reconciliation",
+      "regex": "^/accounting/reconciliation(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/accounting/reconciliation(?:/)?$"
     },
     {
       "page": "/accounting/reports",

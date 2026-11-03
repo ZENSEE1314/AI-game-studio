@@ -1,7 +1,7 @@
 import { Body, Controller, Get, Header, Module, Param, ParseUUIDPipe, Patch, Post, Query } from '@nestjs/common';
 import { AccountClass, JournalStatus } from '@prisma/client';
 import { Type } from 'class-transformer';
-import { ArrayMinSize, IsArray, IsBoolean, IsEnum, IsIn, IsOptional, IsString, IsUUID, Length, Matches, ValidateNested } from 'class-validator';
+import { ArrayMinSize, IsArray, IsBoolean,  IsEnum, IsIn, IsOptional, IsString, IsUUID, Length, Matches, ValidateNested } from 'class-validator';
 import { AccountingService } from './accounting.service';
 import { AuthUser, CurrentUser, RequirePermissions } from '../common/decorators';
 
@@ -31,6 +31,12 @@ class AccountDto {
   @IsEnum(AccountClass) class: AccountClass;
 }
 class ActiveDto { @IsBoolean() isActive: boolean; }
+class CashDto {
+  @IsOptional() @IsBoolean() isCash?: boolean;
+  @IsOptional() @IsIn(['OPERATING', 'INVESTING', 'FINANCING', null]) cashFlowActivity?: 'OPERATING' | 'INVESTING' | 'FINANCING' | null;
+}
+class ReconDto { @IsUUID() accountId: string; @Matches(DATE) statementDate: string; @Matches(/^-?\d{1,16}(\.\d{1,2})?$/) statementBalance: string; }
+class LinesDto { @IsArray() @ArrayMinSize(1) @IsUUID('all', { each: true }) lineIds: string[]; }
 class PeriodDto { @IsString() @Length(2, 60) name: string; @Matches(DATE) startDate: string; @Matches(DATE) endDate: string; }
 
 @Controller('accounting')
@@ -42,6 +48,24 @@ export class AccountingController {
   createAccount(@CurrentUser() u: AuthUser, @Body() d: AccountDto) { return this.svc.createAccount(u, d); }
   @Patch('accounts/:id') @RequirePermissions('accounting:write')
   setActive(@CurrentUser() u: AuthUser, @Param('id', ParseUUIDPipe) id: string, @Body() d: ActiveDto) { return this.svc.setAccountActive(u, id, d.isActive); }
+
+  @Patch('accounts/:id/cash-settings') @RequirePermissions('accounting:write')
+  cashSettings(@CurrentUser() u: AuthUser, @Param('id', ParseUUIDPipe) id: string, @Body() d: CashDto) { return this.svc.setCashSettings(u, id, d); }
+
+  @Get('reconciliations/status') @RequirePermissions('accounting:read') reconStatus() { return this.svc.reconStatus(); }
+  @Get('reconciliations') @RequirePermissions('accounting:read') recons(@Query('accountId') accountId?: string) { return this.svc.listRecons(accountId); }
+  @Post('reconciliations') @RequirePermissions('accounting:write')
+  createRecon(@CurrentUser() u: AuthUser, @Body() d: ReconDto) { return this.svc.createRecon(u, d); }
+  @Get('reconciliations/:id') @RequirePermissions('accounting:read')
+  recon(@Param('id', ParseUUIDPipe) id: string) { return this.svc.getRecon(id); }
+  @Post('reconciliations/:id/clear') @RequirePermissions('accounting:write')
+  clear(@CurrentUser() u: AuthUser, @Param('id', ParseUUIDPipe) id: string, @Body() d: LinesDto) { return this.svc.markLines(u, id, d.lineIds, true); }
+  @Post('reconciliations/:id/unclear') @RequirePermissions('accounting:write')
+  unclear(@CurrentUser() u: AuthUser, @Param('id', ParseUUIDPipe) id: string, @Body() d: LinesDto) { return this.svc.markLines(u, id, d.lineIds, false); }
+  @Post('reconciliations/:id/complete') @RequirePermissions('accounting:approve')
+  completeRecon(@CurrentUser() u: AuthUser, @Param('id', ParseUUIDPipe) id: string) { return this.svc.completeRecon(u, id); }
+  @Post('reconciliations/:id/cancel') @RequirePermissions('accounting:write')
+  cancelRecon(@CurrentUser() u: AuthUser, @Param('id', ParseUUIDPipe) id: string) { return this.svc.cancelRecon(u, id); }
 
   @Get('periods') @RequirePermissions('accounting:read') periods() { return this.svc.listPeriods(); }
   @Post('periods') @RequirePermissions('accounting:write')
@@ -81,6 +105,9 @@ export class AccountingController {
   pl(@Query('from') from: string, @Query('to') to: string) { return this.svc.incomeStatement(from, to); }
   @Get('reports/balance-sheet') @RequirePermissions('accounting:read')
   bs(@Query('asOf') asOf: string) { return this.svc.balanceSheet(asOf); }
+
+  @Get('reports/cash-flow') @RequirePermissions('accounting:read')
+  cf(@Query('from') from: string, @Query('to') to: string) { return this.svc.cashFlow(from, to); }
 
   @Get('reports/:kind/export.csv') @RequirePermissions('accounting:read')
   @Header('content-type', 'text/csv; charset=utf-8') @Header('content-disposition', 'attachment; filename="report.csv"')

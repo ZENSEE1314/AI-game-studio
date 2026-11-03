@@ -7,7 +7,7 @@ const NAV = [
   ['Dashboard', '/dashboard'], ['Account Management', '/accounts'],
   ['Agency Management', '/accounts?role=AGENCY'], ['Agent Management', '/accounts?role=AGENT'],
   ['Staff Management', '/accounts?role=STAFF'], ['User Management', '/accounts?role=USER'],
-  ['Accounting', '/accounting'], ['Chart & Periods', '/accounting/setup'], ['Financial Reports', '/accounting/reports'],
+  ['Accounting', '/accounting'], ['Chart & Periods', '/accounting/setup'], ['Financial Reports', '/accounting/reports'], ['Reconciliation', '/accounting/reconciliation'],
   ['System Settings', '/system'], ['Audit Logs', '/audit'],
 ] as const;
 

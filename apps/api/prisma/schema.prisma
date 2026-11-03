@@ -199,6 +199,17 @@ enum AccountClass {
   EXPENSE
 }
 
+enum CashFlowActivity {
+  OPERATING
+  INVESTING
+  FINANCING
+}
+
+enum ReconStatus {
+  DRAFT
+  COMPLETED
+}
+
 enum JournalStatus {
   DRAFT
   PENDING_APPROVAL
@@ -218,9 +229,14 @@ model ChartAccount {
   name      String
   class     AccountClass
   isActive  Boolean      @default(true) @map("is_active")
+  /// Cash or bank account (ASSET only). Drives the cash flow statement and reconciliation.
+  isCash    Boolean      @default(false) @map("is_cash")
+  /// Cash flow section for movements against this account; null = default by class.
+  cashFlowActivity CashFlowActivity? @map("cash_flow_activity")
   createdAt DateTime     @default(now()) @map("created_at")
 
   lines JournalEntryLine[]
+  reconciliations ReconciliationRecord[]
 
   @@index([class])
   @@map("chart_of_accounts")
@@ -276,6 +292,7 @@ model JournalEntryLine {
 
   entry   JournalEntry @relation(fields: [entryId], references: [id], onDelete: Restrict)
   account ChartAccount @relation(fields: [accountId], references: [id], onDelete: Restrict)
+  reconItem ReconciliationItem?
 
   @@index([entryId])
   @@index([accountId])
@@ -295,4 +312,36 @@ model FinancialApproval {
 
   @@index([entryId, createdAt])
   @@map("financial_approvals")
+}
+
+model ReconciliationRecord {
+  id               String      @id @default(uuid()) @db.Uuid
+  accountId        String      @map("account_id") @db.Uuid
+  statementDate    DateTime    @map("statement_date") @db.Date
+  statementBalance Decimal     @map("statement_balance") @db.Decimal(18, 2)
+  openingBalance   Decimal     @map("opening_balance") @db.Decimal(18, 2)
+  status           ReconStatus @default(DRAFT)
+  createdById      String      @map("created_by_id") @db.Uuid
+  completedById    String?     @map("completed_by_id") @db.Uuid
+  completedAt      DateTime?   @map("completed_at")
+  createdAt        DateTime    @default(now()) @map("created_at")
+
+  account ChartAccount         @relation(fields: [accountId], references: [id], onDelete: Restrict)
+  items   ReconciliationItem[]
+
+  @@index([accountId, status, statementDate])
+  @@map("reconciliation_records")
+}
+
+model ReconciliationItem {
+  id       String   @id @default(uuid()) @db.Uuid
+  reconId  String   @map("recon_id") @db.Uuid
+  lineId   String   @unique @map("line_id") @db.Uuid
+  addedAt  DateTime @default(now()) @map("added_at")
+
+  recon ReconciliationRecord @relation(fields: [reconId], references: [id], onDelete: Restrict)
+  line  JournalEntryLine     @relation(fields: [lineId], references: [id], onDelete: Restrict)
+
+  @@index([reconId])
+  @@map("reconciliation_items")
 }

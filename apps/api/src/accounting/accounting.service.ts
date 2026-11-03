@@ -4,7 +4,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { AuthUser } from '../common/decorators';
 import { toCsv } from '../common/csv';
-import { BalanceRow, LineInput, balanceSheet, cleanLines, incomeStatement, trialBalance } from './accounting.math';
+import { Activity, BalanceRow, LineInput, balanceSheet, cashFlow, cleanLines, incomeStatement, reconciliationSummary, trialBalance } from './accounting.math';
 
 const ALLOW_SELF_APPROVAL = () => process.env.ACCOUNTING_ALLOW_SELF_APPROVAL === 'true';
 const day = (s: string) => {
@@ -216,9 +216,19 @@ export class AccountingService {
     return rows.map((r) => ({ ...r, debit: new Prisma.Decimal(r.debit), credit: new Prisma.Decimal(r.credit) }));
   }
 
-  async reportCsv(kind: 'trial-balance' | 'income-statement' | 'balance-sheet', q: { asOf?: string; from?: string; to?: string }) {
-    if (!['trial-balance', 'income-statement', 'balance-sheet'].includes(kind)) throw new BadRequestException('Unknown report');
+  async reportCsv(kind: 'trial-balance' | 'income-statement' | 'balance-sheet' | 'cash-flow', q: { asOf?: string; from?: string; to?: string }) {
+    if (!['trial-balance', 'income-statement', 'balance-sheet', 'cash-flow'].includes(kind)) throw new BadRequestException('Unknown report');
     const f = (d: Prisma.Decimal) => d.toFixed(2);
+    if (kind === 'cash-flow') {
+      const r = await this.cashFlow(q.from ?? '', q.to ?? '');
+      const rows: (string | number)[][] = [['Section', 'Code', 'Account', 'Inflow', 'Outflow', 'Net']];
+      for (const k of ['OPERATING', 'INVESTING', 'FINANCING'] as const) {
+        r.sections[k].forEach((l) => rows.push([k, l.code, l.name, f(l.inflow), f(l.outflow), f(l.net)]));
+        rows.push([k, '', `Net cash from ${k.toLowerCase()} activities`, '', '', f(r[k.toLowerCase() as 'operating'])]);
+      }
+      rows.push(['', '', 'Net change in cash', '', '', f(r.netChange)], ['', '', 'Opening cash', '', '', f(r.openingCash)], ['', '', 'Closing cash', '', '', f(r.closingCash)]);
+      return toCsv(rows);
+    }
     if (kind === 'trial-balance') {
       const r = await this.trialBalance(q.asOf ?? ''); 
       return toCsv([['Code', 'Account', 'Class', 'Debit', 'Credit'], ...r.lines.map((l) => [l.code, l.name, l.class, f(l.debit), f(l.credit)]), ['', 'TOTAL', '', f(r.totalDebit), f(r.totalCredit)]]);
@@ -232,5 +242,146 @@ export class AccountingService {
     const sec = (n: string, x: { code: string; name: string; amount: Prisma.Decimal }[]) => x.map((l) => [n, l.code, l.name, f(l.amount)]);
     return toCsv([['Section', 'Code', 'Account', 'Amount'], ...sec('Assets', r.assets), ['Assets', '', 'Total assets', f(r.totalAssets)], ...sec('Liabilities', r.liabilities),
       ['Liabilities', '', 'Total liabilities', f(r.totalLiabilities)], ...sec('Equity', r.equity), ['Equity', '', 'Current earnings', f(r.currentEarnings)], ['Equity', '', 'Total equity', f(r.totalEquity)]]);
+  }
+
+  // ---------- cash flow ----------
+  async setCashSettings(actor: AuthUser, id: string, d: { isCash?: boolean; cashFlowActivity?: Activity | null }) {
+    const a = await this.prisma.chartAccount.findUnique({ where: { id } });
+    if (!a) throw new NotFoundException();
+    if (d.isCash && a.class !== 'ASSET') throw new BadRequestException('Only ASSET accounts can be cash accounts');
+    try {
+      return await this.prisma.$transaction(async (tx) => {
+        const u = await tx.chartAccount.update({ where: { id }, data: { isCash: d.isCash, cashFlowActivity: d.cashFlowActivity } });
+        await this.audit.log({ actorId: actor.id, action: 'COA_CASH_SETTINGS_CHANGED', entityType: 'chart_account', entityId: id, metadata: { ...d } }, tx);
+        return u;
+      });
+    } catch (e: any) {
+      if (/cash flag/.test(e?.message ?? '')) throw new ConflictException('Cannot change the cash flag of an account that already has journal lines');
+      throw e;
+    }
+  }
+
+  async cashFlow(from: string, to: string) {
+    const f = day(from), t = day(to);
+    if (f > t) throw new BadRequestException('from must not be after to');
+    const rows = await this.prisma.$queryRaw<{ code: string; name: string; class: AccountClass; activity: Activity | null; inflow: Prisma.Decimal; outflow: Prisma.Decimal }[]>`
+      SELECT a.code, a.name, a.class, a.cash_flow_activity AS activity, SUM(l.credit) AS inflow, SUM(l.debit) AS outflow
+      FROM journal_entry_lines l
+      JOIN journal_entries e ON e.id = l.entry_id AND e.status IN ('POSTED','REVERSED') AND e.entry_date BETWEEN ${f}::date AND ${t}::date
+      JOIN chart_of_accounts a ON a.id = l.account_id AND NOT a.is_cash
+      WHERE EXISTS (SELECT 1 FROM journal_entry_lines c JOIN chart_of_accounts ca ON ca.id = c.account_id AND ca.is_cash WHERE c.entry_id = e.id)
+      GROUP BY a.code, a.name, a.class, a.cash_flow_activity`;
+    const cash = async (cond: 'before' | 'upto') => {
+      const [r] = await this.prisma.$queryRaw<{ b: Prisma.Decimal | null }[]>`
+        SELECT SUM(l.debit - l.credit) AS b FROM journal_entry_lines l
+        JOIN journal_entries e ON e.id = l.entry_id AND e.status IN ('POSTED','REVERSED')
+        JOIN chart_of_accounts a ON a.id = l.account_id AND a.is_cash
+        WHERE (${cond} = 'before' AND e.entry_date < ${f}::date) OR (${cond} = 'upto' AND e.entry_date <= ${t}::date)`;
+      return new Prisma.Decimal(r?.b ?? 0);
+    };
+    return cashFlow(rows.map((r) => ({ ...r, inflow: new Prisma.Decimal(r.inflow), outflow: new Prisma.Decimal(r.outflow) })), await cash('before'), await cash('upto'));
+  }
+
+  // ---------- bank reconciliation ----------
+  private async cashAccount(id: string) {
+    const a = await this.prisma.chartAccount.findUnique({ where: { id } });
+    if (!a || !a.isCash) throw new BadRequestException('Not a cash account');
+    return a;
+  }
+
+  async createRecon(actor: AuthUser, d: { accountId: string; statementDate: string; statementBalance: string }) {
+    await this.cashAccount(d.accountId);
+    const statementDate = day(d.statementDate);
+    const prev = await this.prisma.reconciliationRecord.findFirst({ where: { accountId: d.accountId, status: 'COMPLETED' }, orderBy: { statementDate: 'desc' } });
+    if (prev && statementDate <= prev.statementDate) throw new BadRequestException(`Statement date must be after the last completed reconciliation (${prev.statementDate.toISOString().slice(0, 10)})`);
+    try {
+      return await this.prisma.$transaction(async (tx) => {
+        const r = await tx.reconciliationRecord.create({ data: {
+          accountId: d.accountId, statementDate, statementBalance: new Prisma.Decimal(d.statementBalance),
+          openingBalance: prev?.statementBalance ?? new Prisma.Decimal(0), createdById: actor.id,
+        } });
+        await this.audit.log({ actorId: actor.id, action: 'RECON_STARTED', entityType: 'reconciliation', entityId: r.id, metadata: d as any }, tx);
+        return r;
+      });
+    } catch (e) {
+      if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002') throw new ConflictException('This account already has an open reconciliation');
+      throw e;
+    }
+  }
+
+  listRecons(accountId?: string) {
+    return this.prisma.reconciliationRecord.findMany({ where: { accountId }, orderBy: { createdAt: 'desc' }, include: { account: { select: { code: true, name: true } }, _count: { select: { items: true } } } });
+  }
+
+  async getRecon(id: string) {
+    const r = await this.prisma.reconciliationRecord.findUnique({ where: { id }, include: { account: { select: { id: true, code: true, name: true } } } });
+    if (!r) throw new NotFoundException('Reconciliation not found');
+    const cleared = await this.prisma.journalEntryLine.findMany({
+      where: { reconItem: { reconId: id } }, include: { entry: { select: { reference: true, entryDate: true, description: true } } }, orderBy: { entry: { entryDate: 'asc' } },
+    });
+    const candidates = r.status === 'DRAFT' ? await this.prisma.journalEntryLine.findMany({
+      where: { accountId: r.accountId, reconItem: null, entry: { status: { in: ['POSTED', 'REVERSED'] }, entryDate: { lte: r.statementDate } } },
+      include: { entry: { select: { reference: true, entryDate: true, description: true } } }, orderBy: { entry: { entryDate: 'asc' } },
+    }) : [];
+    return { ...r, summary: reconciliationSummary(r.openingBalance, r.statementBalance, cleared), cleared, candidates };
+  }
+
+  private async draftRecon(id: string) {
+    const r = await this.prisma.reconciliationRecord.findUnique({ where: { id } });
+    if (!r) throw new NotFoundException('Reconciliation not found');
+    if (r.status !== 'DRAFT') throw new ConflictException('Reconciliation is already completed');
+    return r;
+  }
+
+  async markLines(actor: AuthUser, id: string, lineIds: string[], add: boolean) {
+    const r = await this.draftRecon(id);
+    if (add) {
+      const ok = await this.prisma.journalEntryLine.findMany({
+        where: { id: { in: lineIds }, accountId: r.accountId, reconItem: null, entry: { status: { in: ['POSTED', 'REVERSED'] }, entryDate: { lte: r.statementDate } } }, select: { id: true },
+      });
+      if (ok.length !== new Set(lineIds).size) throw new BadRequestException('Some lines are not eligible (wrong account, not posted, after statement date, or already cleared)');
+      await this.prisma.reconciliationItem.createMany({ data: ok.map((l) => ({ reconId: id, lineId: l.id })) });
+    } else {
+      await this.prisma.reconciliationItem.deleteMany({ where: { reconId: id, lineId: { in: lineIds } } });
+    }
+    await this.audit.log({ actorId: actor.id, action: add ? 'RECON_LINES_CLEARED' : 'RECON_LINES_UNCLEARED', entityType: 'reconciliation', entityId: id, metadata: { count: lineIds.length } });
+    return this.getRecon(id);
+  }
+
+  async completeRecon(actor: AuthUser, id: string) {
+    const r = await this.draftRecon(id);
+    if (r.createdById === actor.id && !ALLOW_SELF_APPROVAL()) throw new ForbiddenException('Segregation of duties: the preparer cannot complete their own reconciliation');
+    const view = await this.getRecon(id);
+    if (!view.summary.reconciled) throw new ConflictException(`Not reconciled: difference ${view.summary.difference.toFixed(2)} (statement ${r.statementBalance.toFixed(2)} vs cleared ${view.summary.clearedBalance.toFixed(2)})`);
+    await this.prisma.$transaction(async (tx) => {
+      const u = await tx.reconciliationRecord.updateMany({ where: { id, status: 'DRAFT' }, data: { status: 'COMPLETED', completedById: actor.id, completedAt: new Date() } });
+      if (!u.count) throw new ConflictException('Reconciliation is already completed');
+      await this.audit.log({ actorId: actor.id, action: 'RECON_COMPLETED', entityType: 'reconciliation', entityId: id, metadata: { statementBalance: r.statementBalance.toFixed(2) } }, tx);
+    });
+    return this.getRecon(id);
+  }
+
+  async cancelRecon(actor: AuthUser, id: string) {
+    await this.draftRecon(id);
+    await this.prisma.$transaction(async (tx) => {
+      await tx.reconciliationItem.deleteMany({ where: { reconId: id } });
+      await tx.reconciliationRecord.delete({ where: { id } });
+      await this.audit.log({ actorId: actor.id, action: 'RECON_CANCELLED', entityType: 'reconciliation', entityId: id }, tx);
+    });
+    return { cancelled: true };
+  }
+
+  /** Per cash account: book balance, last reconciled statement and unreconciled activity. */
+  async reconStatus() {
+    const accts = await this.prisma.chartAccount.findMany({ where: { isCash: true }, orderBy: { code: 'asc' } });
+    return Promise.all(accts.map(async (a) => {
+      const [bal] = await this.prisma.$queryRaw<{ b: Prisma.Decimal | null; n: bigint }[]>`
+        SELECT SUM(l.debit - l.credit) AS b, COUNT(*) FILTER (WHERE ri.id IS NULL) AS n
+        FROM journal_entry_lines l JOIN journal_entries e ON e.id = l.entry_id AND e.status IN ('POSTED','REVERSED')
+        LEFT JOIN reconciliation_items ri ON ri.line_id = l.id WHERE l.account_id = ${a.id}::uuid`;
+      const last = await this.prisma.reconciliationRecord.findFirst({ where: { accountId: a.id, status: 'COMPLETED' }, orderBy: { statementDate: 'desc' } });
+      return { accountId: a.id, code: a.code, name: a.name, bookBalance: new Prisma.Decimal(bal?.b ?? 0).toFixed(2), unreconciledLines: Number(bal?.n ?? 0),
+               lastReconciledDate: last?.statementDate ?? null, lastStatementBalance: last?.statementBalance.toFixed(2) ?? null };
+    }));
   }
 }
