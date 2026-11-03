@@ -1,0 +1,448 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  SUPER_ADMIN
+  AGENCY
+  AGENT
+  STAFF
+  USER
+}
+
+enum AccountStatus {
+  ACTIVE
+  SUSPENDED
+}
+
+// ---------- USER MANAGEMENT ----------
+
+model User {
+  id               String        @id @default(uuid()) @db.Uuid
+  username         String        @unique
+  email            String        @unique
+  phone            String?       @unique
+  passwordHash     String        @map("password_hash")
+  fullName         String        @map("full_name")
+  role             Role
+  parentId         String?       @map("parent_id") @db.Uuid
+  agencyId         String?       @map("agency_id") @db.Uuid
+  agentId          String?       @map("agent_id") @db.Uuid
+  staffId          String?       @map("staff_id") @db.Uuid
+  status           AccountStatus @default(ACTIVE)
+  suspendedAt      DateTime?     @map("suspended_at")
+  suspensionReason String?       @map("suspension_reason")
+  suspendedById    String?       @map("suspended_by_id") @db.Uuid
+  totpSecret       String?       @map("totp_secret")
+  totpEnabled      Boolean       @default(false) @map("totp_enabled")
+  /// Set for accounts created with a temporary password; blocks everything except /auth/* until changed.
+  mustChangePassword Boolean     @default(false) @map("must_change_password")
+  lastLogin        DateTime?     @map("last_login")
+  createdAt        DateTime      @default(now()) @map("created_at")
+  updatedAt        DateTime      @updatedAt @map("updated_at")
+
+  parent    User?  @relation("Parent", fields: [parentId], references: [id], onDelete: Restrict)
+  children  User[] @relation("Parent")
+  agency    User?  @relation("Agency", fields: [agencyId], references: [id], onDelete: Restrict)
+  agencyMembers User[] @relation("Agency")
+  agent     User?  @relation("Agent", fields: [agentId], references: [id], onDelete: Restrict)
+  agentMembers User[] @relation("Agent")
+  staff     User?  @relation("Staff", fields: [staffId], references: [id], onDelete: Restrict)
+  staffMembers User[] @relation("Staff")
+
+  sessions        UserSession[]
+  ancestorOf      AccountHierarchy[] @relation("HierAncestor")
+  descendantOf    AccountHierarchy[] @relation("HierDescendant")
+  statusHistory   AccountStatusHistory[] @relation("HistoryTarget")
+  notifications   Notification[]
+
+  @@index([role, status])
+  @@index([parentId])
+  @@index([agencyId])
+  @@index([agentId])
+  @@index([staffId])
+  @@map("users")
+}
+
+model UserSession {
+  id          String    @id @default(uuid()) @db.Uuid
+  userId      String    @map("user_id") @db.Uuid
+  refreshHash String    @unique @map("refresh_hash")
+  userAgent   String?   @map("user_agent")
+  ip          String?
+  expiresAt   DateTime  @map("expires_at")
+  revokedAt   DateTime? @map("revoked_at")
+  revokeReason String?  @map("revoke_reason")
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, revokedAt])
+  @@map("user_sessions")
+}
+
+model RoleDef {
+  id          String   @id @default(uuid()) @db.Uuid
+  name        Role     @unique
+  description String?
+  rank        Int
+  permissions RolePermission[]
+
+  @@map("roles")
+}
+
+model Permission {
+  id          String @id @default(uuid()) @db.Uuid
+  code        String @unique
+  description String?
+  roles       RolePermission[]
+
+  @@map("permissions")
+}
+
+model RolePermission {
+  roleId       String @map("role_id") @db.Uuid
+  permissionId String @map("permission_id") @db.Uuid
+
+  role       RoleDef    @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+  @@map("role_permissions")
+}
+
+/// Closure table: one row per (ancestor, descendant) pair; depth 0 = self.
+model AccountHierarchy {
+  ancestorId   String @map("ancestor_id") @db.Uuid
+  descendantId String @map("descendant_id") @db.Uuid
+  depth        Int
+
+  ancestor   User @relation("HierAncestor", fields: [ancestorId], references: [id], onDelete: Restrict)
+  descendant User @relation("HierDescendant", fields: [descendantId], references: [id], onDelete: Restrict)
+
+  @@id([ancestorId, descendantId])
+  @@index([descendantId])
+  @@map("account_hierarchy")
+}
+
+model AccountStatusHistory {
+  id            String        @id @default(uuid()) @db.Uuid
+  userId        String        @map("user_id") @db.Uuid
+  fromStatus    AccountStatus @map("from_status")
+  toStatus      AccountStatus @map("to_status")
+  reason        String
+  changedById   String        @map("changed_by_id") @db.Uuid
+  affectedCount Int           @default(0) @map("affected_count")
+  createdAt     DateTime      @default(now()) @map("created_at")
+
+  user User @relation("HistoryTarget", fields: [userId], references: [id], onDelete: Restrict)
+
+  @@index([userId, createdAt])
+  @@map("account_status_history")
+}
+
+// ---------- SYSTEM ----------
+
+model SystemSetting {
+  key         String   @id
+  value       Json
+  updatedById String?  @map("updated_by_id") @db.Uuid
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@map("system_settings")
+}
+
+model Notification {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  type      String
+  title     String
+  body      String
+  /// Deep-link payload, e.g. { roundId }
+  data      Json?
+  readAt    DateTime? @map("read_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, readAt])
+  @@index([userId, createdAt])
+  @@map("notifications")
+}
+
+/// Append-only, hash-chained. UPDATE/DELETE blocked by DB trigger (see migration).
+model AuditLog {
+  id         BigInt   @id @default(autoincrement())
+  actorId    String?  @map("actor_id") @db.Uuid
+  action     String
+  entityType String   @map("entity_type")
+  entityId   String?  @map("entity_id")
+  metadata   Json?
+  ip         String?
+  prevHash   String?  @map("prev_hash")
+  hash       String
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@index([actorId, createdAt])
+  @@index([entityType, entityId])
+  @@index([action])
+  @@map("audit_logs")
+}
+
+// ---------- ACCOUNTING (real company books; no relation to any in-app credit) ----------
+
+enum AccountClass {
+  ASSET
+  LIABILITY
+  EQUITY
+  INCOME
+  EXPENSE
+}
+
+enum CashFlowActivity {
+  OPERATING
+  INVESTING
+  FINANCING
+}
+
+enum ReconStatus {
+  DRAFT
+  COMPLETED
+}
+
+enum JournalStatus {
+  DRAFT
+  PENDING_APPROVAL
+  APPROVED
+  POSTED
+  REVERSED
+}
+
+enum PeriodStatus {
+  OPEN
+  CLOSED
+}
+
+model ChartAccount {
+  id        String       @id @default(uuid()) @db.Uuid
+  code      String       @unique
+  name      String
+  class     AccountClass
+  isActive  Boolean      @default(true) @map("is_active")
+  /// Cash or bank account (ASSET only). Drives the cash flow statement and reconciliation.
+  isCash    Boolean      @default(false) @map("is_cash")
+  /// Cash flow section for movements against this account; null = default by class.
+  cashFlowActivity CashFlowActivity? @map("cash_flow_activity")
+  createdAt DateTime     @default(now()) @map("created_at")
+
+  lines JournalEntryLine[]
+  reconciliations ReconciliationRecord[]
+
+  @@index([class])
+  @@map("chart_of_accounts")
+}
+
+model AccountingPeriod {
+  id        String       @id @default(uuid()) @db.Uuid
+  name      String       @unique
+  startDate DateTime     @map("start_date") @db.Date
+  endDate   DateTime     @map("end_date") @db.Date
+  status    PeriodStatus @default(OPEN)
+  closedAt  DateTime?    @map("closed_at")
+  closedById String?     @map("closed_by_id") @db.Uuid
+
+  entries JournalEntry[]
+
+  @@index([startDate, endDate])
+  @@map("accounting_periods")
+}
+
+model JournalEntry {
+  id           String        @id @default(uuid()) @db.Uuid
+  reference    String        @unique
+  entryDate    DateTime      @map("entry_date") @db.Date
+  description  String
+  status       JournalStatus @default(DRAFT)
+  periodId     String        @map("period_id") @db.Uuid
+  createdById  String        @map("created_by_id") @db.Uuid
+  approvedById String?       @map("approved_by_id") @db.Uuid
+  postedAt     DateTime?     @map("posted_at")
+  reversesId   String?       @unique @map("reverses_id") @db.Uuid
+  createdAt    DateTime      @default(now()) @map("created_at")
+  updatedAt    DateTime      @updatedAt @map("updated_at")
+
+  period    AccountingPeriod   @relation(fields: [periodId], references: [id], onDelete: Restrict)
+  reverses  JournalEntry?      @relation("Reversal", fields: [reversesId], references: [id], onDelete: Restrict)
+  reversedBy JournalEntry?     @relation("Reversal")
+  lines     JournalEntryLine[]
+  approvals FinancialApproval[]
+
+  @@index([status, entryDate])
+  @@index([periodId])
+  @@map("journal_entries")
+}
+
+model JournalEntryLine {
+  id          String   @id @default(uuid()) @db.Uuid
+  entryId     String   @map("entry_id") @db.Uuid
+  accountId   String   @map("account_id") @db.Uuid
+  debit       Decimal  @default(0) @db.Decimal(18, 2)
+  credit      Decimal  @default(0) @db.Decimal(18, 2)
+  description String?
+
+  entry   JournalEntry @relation(fields: [entryId], references: [id], onDelete: Restrict)
+  account ChartAccount @relation(fields: [accountId], references: [id], onDelete: Restrict)
+  reconItem ReconciliationItem?
+
+  @@index([entryId])
+  @@index([accountId])
+  @@map("journal_entry_lines")
+}
+
+/// Every workflow transition (submit / approve / reject / post / reverse), append-only.
+model FinancialApproval {
+  id        String   @id @default(uuid()) @db.Uuid
+  entryId   String   @map("entry_id") @db.Uuid
+  action    String
+  actorId   String   @map("actor_id") @db.Uuid
+  comment   String?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  entry JournalEntry @relation(fields: [entryId], references: [id], onDelete: Restrict)
+
+  @@index([entryId, createdAt])
+  @@map("financial_approvals")
+}
+
+model ReconciliationRecord {
+  id               String      @id @default(uuid()) @db.Uuid
+  accountId        String      @map("account_id") @db.Uuid
+  statementDate    DateTime    @map("statement_date") @db.Date
+  statementBalance Decimal     @map("statement_balance") @db.Decimal(18, 2)
+  openingBalance   Decimal     @map("opening_balance") @db.Decimal(18, 2)
+  status           ReconStatus @default(DRAFT)
+  createdById      String      @map("created_by_id") @db.Uuid
+  completedById    String?     @map("completed_by_id") @db.Uuid
+  completedAt      DateTime?   @map("completed_at")
+  createdAt        DateTime    @default(now()) @map("created_at")
+
+  account ChartAccount         @relation(fields: [accountId], references: [id], onDelete: Restrict)
+  items   ReconciliationItem[]
+
+  @@index([accountId, status, statementDate])
+  @@map("reconciliation_records")
+}
+
+model ReconciliationItem {
+  id       String   @id @default(uuid()) @db.Uuid
+  reconId  String   @map("recon_id") @db.Uuid
+  lineId   String   @unique @map("line_id") @db.Uuid
+  addedAt  DateTime @default(now()) @map("added_at")
+
+  recon ReconciliationRecord @relation(fields: [reconId], references: [id], onDelete: Restrict)
+  line  JournalEntryLine     @relation(fields: [lineId], references: [id], onDelete: Restrict)
+
+  @@index([reconId])
+  @@map("reconciliation_items")
+}
+
+// ---------- INTERNAL GAME (in-game credits only: no cash value, not purchasable, not withdrawable) ----------
+
+enum LedgerKind {
+  GRANT
+  HOLD
+  RELEASE
+}
+
+enum RoundStatus {
+  DRAFT
+  OPEN
+  LOCKED
+  RESULT_PENDING
+  COMPLETED
+  CANCELLED
+}
+
+model Wallet {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @unique @map("user_id") @db.Uuid
+  balance   BigInt   @default(0)
+  held      BigInt   @default(0)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  ledger WalletLedger[]
+
+  @@map("wallets")
+}
+
+/// Append-only. Every balance change is one row with the resulting balances.
+model WalletLedger {
+  id             String     @id @default(uuid()) @db.Uuid
+  walletId       String     @map("wallet_id") @db.Uuid
+  kind           LedgerKind
+  amount         BigInt
+  balanceAfter   BigInt     @map("balance_after")
+  heldAfter      BigInt     @map("held_after")
+  ref            String?
+  idempotencyKey String?    @unique @map("idempotency_key")
+  createdById    String?    @map("created_by_id") @db.Uuid
+  createdAt      DateTime   @default(now()) @map("created_at")
+
+  wallet Wallet @relation(fields: [walletId], references: [id], onDelete: Restrict)
+
+  @@index([walletId, createdAt])
+  @@map("wallet_ledger")
+}
+
+model GameRound {
+  id            String      @id @default(uuid()) @db.Uuid
+  name          String
+  status        RoundStatus @default(DRAFT)
+  minStake      BigInt      @default(10000) @map("min_stake")
+  pendingNumber Int?        @map("pending_number")
+  createdById   String      @map("created_by_id") @db.Uuid
+  openedAt      DateTime?   @map("opened_at")
+  lockedAt      DateTime?   @map("locked_at")
+  createdAt     DateTime    @default(now()) @map("created_at")
+
+  selections NumberSelection[]
+  result     RoundResult?
+
+  @@index([status, createdAt])
+  @@map("game_rounds")
+}
+
+model NumberSelection {
+  id        String   @id @default(uuid()) @db.Uuid
+  roundId   String   @map("round_id") @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  number    Int
+  stake     BigInt
+  released  Boolean  @default(false)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  round GameRound @relation(fields: [roundId], references: [id], onDelete: Restrict)
+
+  @@unique([roundId, userId, number])
+  @@index([userId])
+  @@index([roundId, number])
+  @@map("number_selections")
+}
+
+/// Immutable once written. Corrections would be a separate, audited admin action (not built).
+model RoundResult {
+  roundId     String   @id @map("round_id") @db.Uuid
+  number      Int
+  publishedBy String   @map("published_by") @db.Uuid
+  publishedAt DateTime @default(now()) @map("published_at")
+
+  round GameRound @relation(fields: [roundId], references: [id], onDelete: Restrict)
+
+  @@map("round_results")
+}
