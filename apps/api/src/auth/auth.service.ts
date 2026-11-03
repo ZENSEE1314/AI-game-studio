@@ -62,6 +62,7 @@ export class AuthService {
     return {
       ...tokens,
       twoFactorSetupRequired: user.role === Role.SUPER_ADMIN && !user.totpEnabled,
+      mustChangePassword: user.mustChangePassword,
       user: { id: user.id, username: user.username, role: user.role, fullName: user.fullName },
     };
   }
@@ -91,17 +92,17 @@ export class AuthService {
   async profile(userId: string) {
     return this.prisma.user.findUniqueOrThrow({
       where: { id: userId },
-      select: { id: true, username: true, email: true, phone: true, fullName: true, role: true, status: true, lastLogin: true, createdAt: true, totpEnabled: true },
+      select: { id: true, username: true, email: true, phone: true, fullName: true, role: true, status: true, lastLogin: true, createdAt: true, totpEnabled: true, mustChangePassword: true },
     });
   }
 
   async changePassword(userId: string, sessionId: string, current: string, next: string, ip?: string) {
     const u = await this.prisma.user.findUniqueOrThrow({ where: { id: userId } });
-    if (!(await bcrypt.compare(current, u.passwordHash))) throw new UnauthorizedException('Current password is incorrect');
+    if (!(await bcrypt.compare(current, u.passwordHash))) throw new ForbiddenException({ code: 'REAUTH_FAILED', message: 'Current password is incorrect' });
     if (current === next) throw new BadRequestException('New password must differ from the current one');
     const passwordHash = await bcrypt.hash(next, 12);
     await this.prisma.$transaction(async (tx) => {
-      await tx.user.update({ where: { id: userId }, data: { passwordHash } });
+      await tx.user.update({ where: { id: userId }, data: { passwordHash, mustChangePassword: false } });
       // Every other device is signed out; this session continues.
       await tx.userSession.updateMany({ where: { userId, revokedAt: null, id: { not: sessionId } }, data: { revokedAt: new Date(), revokeReason: 'PASSWORD_CHANGED' } });
       await this.audit.log({ actorId: userId, action: 'PASSWORD_CHANGED', entityType: 'user', entityId: userId, ip }, tx);

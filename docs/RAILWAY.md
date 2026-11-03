@@ -32,6 +32,7 @@ needs them), so don't create them. The mobile app is built with Expo, not Railwa
    | `HOST` | `::` only if the web service cannot reach the API privately (see step 4) |
    | `LOGIN_RATE_LIMIT` | leave unset (default 10/min per IP) |
    | `ACCOUNTING_ALLOW_SELF_APPROVAL` | leave unset/`false` in production (see step 6) |
+   | `REQUIRE_ADMIN_2FA` | `true` once both admins have enabled 2FA (step 6) |
 
 4. Deploy. On each start the container runs `prisma migrate deploy` and then the server, so
    migrations apply automatically. A bad migration fails the deploy and the previous version keeps
@@ -70,13 +71,15 @@ afterwards if your plan lets you.
 - API logs show `Nest application successfully started` and no migration errors.
 - Create an Agency in **Account Management**; suspend and reactivate it; check **Audit Logs**.
 
-## 6. Accounting approvals
-Journal entries and reconciliations must be approved by someone other than their creator, and the
-seed creates only one Super Admin. Until a second-admin flow exists (not built), either:
-- temporarily set `ACCOUNTING_ALLOW_SELF_APPROVAL=true` in **staging only**, or
-- insert a second Super Admin by running the seed with a different `SEED_ADMIN_USERNAME`
-  (it creates one account per run; the other is untouched).
-Keep it `false` in production once two admins exist.
+## 6. Second administrator and approvals
+Accounting entries and reconciliations must be approved by someone other than their creator.
+1. Sign in to the web admin as the first Super Admin → **Administrators** → add the second admin with a
+   temporary password (share it through a secure channel). They must change it at first sign-in.
+2. Both admins enable two-factor on **My profile**. Then set `REQUIRE_ADMIN_2FA=true` on the API
+   service (recommended) and redeploy.
+3. Keep `ACCOUNTING_ALLOW_SELF_APPROVAL` unset/`false` in production. Staging may use `true` for solo testing.
+Losing an authenticator device has no self-service recovery yet; a database fix is required, so keep at
+least two administrators.
 
 ## 7. Mobile app
 The app needs a reachable API URL. Either generate a public domain for `rw-mobile-api`

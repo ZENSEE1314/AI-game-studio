@@ -123,6 +123,12 @@
       "namedRegex": "^/accounts(?:/)?$"
     },
     {
+      "page": "/admins",
+      "regex": "^/admins(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/admins(?:/)?$"
+    },
+    {
       "page": "/audit",
       "regex": "^/audit(?:/)?$",
       "routeKeys": {},

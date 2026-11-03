@@ -31,7 +31,7 @@ export class JwtAuthGuard implements CanActivate {
       throw new UnauthorizedException('Session revoked');
     }
     const user = await this.prisma.user.findUnique({
-      where: { id: payload.sub }, select: { id: true, username: true, role: true },
+      where: { id: payload.sub }, select: { id: true, username: true, role: true, mustChangePassword: true, totpEnabled: true },
     });
     // Counts self (depth 0) and every ancestor: any suspended node blocks access.
     const blocked = await this.prisma.accountHierarchy.count({
@@ -42,6 +42,14 @@ export class JwtAuthGuard implements CanActivate {
       throw new ForbiddenException('Account suspended');
     }
     req.user = { id: user.id, username: user.username, role: user.role, sessionId: payload.sid };
+    // Until these are resolved, only /auth/* (change password, 2FA setup, me, logout) works. Enforced here, not in the UI.
+    const onAuthRoute = /^\/api\/v1\/auth\//.test(req.path ?? req.url ?? '');
+    if (!onAuthRoute) {
+      if (user.mustChangePassword) throw new ForbiddenException({ code: 'PASSWORD_CHANGE_REQUIRED', message: 'You must change your temporary password first' });
+      if (user.role === 'SUPER_ADMIN' && process.env.REQUIRE_ADMIN_2FA === 'true' && !user.totpEnabled) {
+        throw new ForbiddenException({ code: 'TWO_FACTOR_REQUIRED', message: 'Two-factor authentication must be enabled for administrators' });
+      }
+    }
     return true;
   }
 }

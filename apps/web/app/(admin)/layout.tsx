@@ -12,7 +12,7 @@ const ACCOUNTS: Record<string, Nav[]> = {
   AGENT: [['All downline', '/accounts'], ['My staff', '/accounts?role=STAFF'], ['Users', '/accounts?role=USER']],
   STAFF: [['My users', '/accounts?role=USER']],
 };
-const ADMIN_ONLY: Nav[] = [['Game Rounds', '/game'], ['Credits', '/credits'], ['Accounting', '/accounting'], ['Chart & Periods', '/accounting/setup'], ['Financial Reports', '/accounting/reports'],
+const ADMIN_ONLY: Nav[] = [['Game Rounds', '/game'], ['Credits', '/credits'], ['Administrators', '/admins'], ['Accounting', '/accounting'], ['Chart & Periods', '/accounting/setup'], ['Financial Reports', '/accounting/reports'],
   ['Reconciliation', '/accounting/reconciliation'], ['System Settings', '/system'], ['Audit Logs', '/audit']];
 const navFor = (role: string): Nav[] => [['Dashboard', '/dashboard'], ['Notifications', '/notifications'], ...(role === 'SUPER_ADMIN' ? [] : ([['Play', '/play']] as Nav[])), ...(ACCOUNTS[role] ?? []), ...(role === 'SUPER_ADMIN' ? ADMIN_ONLY : []), ['My profile', '/profile']];
 const adminOnlyPath = (p: string) => ADMIN_ONLY.some(([, h]) => p === h || p.startsWith(h + '/'));

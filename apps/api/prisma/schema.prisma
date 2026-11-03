@@ -40,6 +40,8 @@ model User {
   suspendedById    String?       @map("suspended_by_id") @db.Uuid
   totpSecret       String?       @map("totp_secret")
   totpEnabled      Boolean       @default(false) @map("totp_enabled")
+  /// Set for accounts created with a temporary password; blocks everything except /auth/* until changed.
+  mustChangePassword Boolean     @default(false) @map("must_change_password")
   lastLogin        DateTime?     @map("last_login")
   createdAt        DateTime      @default(now()) @map("created_at")
   updatedAt        DateTime      @updatedAt @map("updated_at")

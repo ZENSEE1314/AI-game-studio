@@ -9,6 +9,8 @@ export async function api<T = any>(path: string, init?: { method?: string; body?
   });
   const data = await r.json().catch(() => null);
   if (r.status === 401 && typeof window !== 'undefined') window.location.href = '/login';
+  // Server says this account must finish onboarding first: send them to the profile page.
+  if (r.status === 403 && ['PASSWORD_CHANGE_REQUIRED', 'TWO_FACTOR_REQUIRED'].includes(data?.code) && typeof window !== 'undefined' && !window.location.pathname.startsWith('/profile')) window.location.href = '/profile';
   if (!r.ok) {
     const m = Array.isArray(data?.message) ? data.message.join(', ') : data?.message;
     throw new ApiError(r.status, m ?? `Request failed (${r.status})`, data);

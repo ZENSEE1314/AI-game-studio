@@ -9,13 +9,14 @@ import { AuthModule } from './auth/auth.module';
 import { AccountingModule } from './accounting/accounting.module';
 import { GameModule } from './game/game.module';
 import { NotificationsModule } from './notifications/notifications.module';
+import { AdminsModule } from './admins/admins.module';
 import { HealthModule } from './health/health.module';
 import { JwtAuthGuard, MaintenanceGuard, PermissionsGuard } from './auth/guards';
 
 @Module({
   imports: [
     ThrottlerModule.forRoot([{ ttl: 60_000, limit: 120 }]),
-    PrismaModule, AuditModule, SystemModule, AccountsModule, AuthModule, HealthModule, AccountingModule, GameModule, NotificationsModule,
+    PrismaModule, AuditModule, SystemModule, AccountsModule, AuthModule, HealthModule, AccountingModule, GameModule, NotificationsModule, AdminsModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },

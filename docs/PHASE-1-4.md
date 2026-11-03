@@ -200,3 +200,27 @@ anything of value this becomes gambling: do not do that with this code.
 - **Not built: push notifications** (needs Expo push tokens and a real device to verify; the other
   notification types in the original spec, e.g. account suspended, CCTV, accounting approval,
   reconciliation discrepancy, are not wired). Notices are not auto-purged.
+
+## Second (and further) Super Admins
+- **Web:** Administrators page (list, add, suspend, reactivate). **API:** `GET/POST /admins`,
+  `POST /admins/:id/suspend|reactivate` (Super Admin only).
+- Creating, suspending or reactivating an administrator requires the acting admin's **own password**
+  (a wrong one returns 403 `REAUTH_FAILED`, so the session is not mistaken for expired). Sensitive
+  admin routes are rate-limited (`ADMIN_RATE_LIMIT`).
+- New admins get a **temporary password** (min 12 chars) and `mustChangePassword`. The server then
+  rejects every route except `/auth/*` (403 `PASSWORD_CHANGE_REQUIRED`) until they change it; the web
+  panel sends them to Profile.
+- **2FA:** the Profile page now has authenticator-app setup. Set `REQUIRE_ADMIN_2FA=true` (recommended
+  in production) and administrators without 2FA are limited to `/auth/*` (403 `TWO_FACTOR_REQUIRED`)
+  until they enable it; after that every sign-in needs the 6-digit code.
+- Safety rails: nobody can suspend themselves; the **last active administrator can never be
+  suspended** (checked under an advisory lock so two admins cannot suspend each other concurrently);
+  suspension revokes sessions immediately; everything is audited and recorded in status history.
+- With two admins and `ACCOUNTING_ALLOW_SELF_APPROVAL` unset, segregation of duties works end to end
+  (verified: creator refused, second admin approves and posts).
+- Tests: 4 new unit tests; `test/admins-smoke.sh` (29 checks, runs against two servers, one with
+  `REQUIRE_ADMIN_2FA=true` and self-approval off); `apps/web/test-admins.e2e.js` (14 browser checks).
+  Browser testing found and fixed a bug where a wrong confirmation password logged the admin out.
+- Not built: admin password reset by another admin (they can suspend and re-create), email
+  invitations, 2FA recovery codes (losing the authenticator device currently needs a database fix),
+  QR code rendering (the key is shown for manual entry).
