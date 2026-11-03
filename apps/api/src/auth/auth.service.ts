@@ -88,6 +88,13 @@ export class AuthService {
     return this.issue(s.userId, s.user.role, meta, s.id);
   }
 
+  async profile(userId: string) {
+    return this.prisma.user.findUniqueOrThrow({
+      where: { id: userId },
+      select: { id: true, username: true, email: true, phone: true, fullName: true, role: true, status: true, lastLogin: true, createdAt: true, totpEnabled: true },
+    });
+  }
+
   async logout(sessionId: string) {
     await this.prisma.userSession.update({ where: { id: sessionId }, data: { revokedAt: new Date(), revokeReason: 'LOGOUT' } });
   }

@@ -1,0 +1,14 @@
+{
+  "expo": {
+    "name": "Platform",
+    "slug": "platform-mobile",
+    "version": "0.1.0",
+    "scheme": "platform",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "ios": { "bundleIdentifier": "com.example.platform", "infoPlist": { "NSFaceIDUsageDescription": "Unlock the app with Face ID" } },
+    "android": { "package": "com.example.platform", "permissions": ["USE_BIOMETRIC"] },
+    "plugins": ["expo-router", "expo-secure-store", "expo-local-authentication"],
+    "experiments": { "typedRoutes": false }
+  }
+}

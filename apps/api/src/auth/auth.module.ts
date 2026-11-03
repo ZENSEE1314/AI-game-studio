@@ -32,7 +32,7 @@ export class AuthController {
   @Public() @Post('register') @Throttle({ default: { limit: 5, ttl: 60_000 } })
   register(@Body() dto: RegisterDto, @Req() req: any) { return this.auth.register(dto, req.ip); }
 
-  @Public() @AllowInMaintenance() @Post('login') @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  @Public() @AllowInMaintenance() @Post('login') @Throttle({ default: { limit: Number(process.env.LOGIN_RATE_LIMIT ?? 10), ttl: 60_000 } })
   login(@Body() dto: LoginDto, @Req() req: any) { return this.auth.login(dto, meta(req)); }
 
   @Public() @AllowInMaintenance() @Post('refresh') @Throttle({ default: { limit: 30, ttl: 60_000 } })
@@ -42,7 +42,7 @@ export class AuthController {
   logout(@CurrentUser() u: AuthUser) { return this.auth.logout(u.sessionId); }
 
   @Get('me') @AllowInMaintenance()
-  me(@CurrentUser() u: AuthUser) { return u; }
+  me(@CurrentUser() u: AuthUser) { return this.auth.profile(u.id); }
 
   @Post('2fa/setup') @AllowInMaintenance()
   setup(@CurrentUser() u: AuthUser) { return this.auth.twoFactorSetup(u.id); }

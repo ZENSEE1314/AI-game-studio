@@ -75,3 +75,17 @@ API=http://localhost:3000/api/v1 ADMIN_PASSWORD=... ./test/smoke.sh
 - Verified with a headless-browser run (14 checks) against the real API + PostgreSQL.
 - Run: `cd apps/web && API_URL=http://localhost:3000/api/v1 npm run dev`.
 - Not built yet: sidebar sections for later phases (wallet, accounting, commission, CCTV, etc.).
+
+## Mobile shell (`apps/mobile`, Expo SDK 58 + expo-router)
+- Screens: sign in (2FA prompt, maintenance/suspension messages), register (via staff referral
+  username), Home (greeting, account card, application-status banner, pull-to-refresh), Profile
+  (details, biometric unlock toggle, sign out), Locked (biometric gate).
+- Tokens are stored in the platform keychain/keystore (`expo-secure-store`). A single shared refresh
+  handles concurrent 401s; a failed refresh signs the user out. Sign-out revokes the server session.
+- Biometric unlock is opt-in and shown only when hardware is present and enrolled.
+- Config: `EXPO_PUBLIC_API_URL` (see `.env.example`). Run: `cd apps/mobile && npx expo start`.
+- Verified: TypeScript clean and an Android production bundle builds. **Not yet run on a device or
+  emulator**, so the UI, biometric prompts and keychain storage are untested in practice.
+- Not built: Wallet, Demonstration, CCTV, History tabs, push notifications (later phases).
+- API change: `GET /auth/me` now returns the full profile. Login rate limit is configurable with
+  `LOGIN_RATE_LIMIT` (default 10/min per IP).
