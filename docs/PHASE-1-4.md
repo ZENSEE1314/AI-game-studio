@@ -230,3 +230,27 @@ anything of value this becomes gambling: do not do that with this code.
 Super Admin exists, the API creates one with a temporary password that must be changed at first sign-in.
 Verified on an empty database (login → blocked until password change → change → full access) and
 that a restart with different values creates nothing. 4 unit tests. The seed script remains available.
+
+## Referral sign-up, user login and role changes
+- **Referral codes:** every STAFF account has an 8-character code (unambiguous alphabet, unique; a DB
+  constraint forbids codes on other levels). Existing staff were back-filled by the migration.
+  Link format: `https://<web domain>/signup?ref=CODE`.
+- **Public sign-up** (`/signup`, `POST /auth/register`, `GET /auth/referral/:code`): the page shows
+  "You are joining <staff name>'s team" (the lookup reveals only that name). The new USER is placed
+  under that staff member, so their agent and agency are set automatically. Rejected for invalid /
+  suspended staff codes, a suspended agency or agent above, maintenance mode, duplicates, weak
+  passwords, and any extra field (a client cannot choose its own role). Rate-limited
+  (`REGISTER_RATE_LIMIT`, default 5/min).
+- **User login on the web:** end users now sign in at `/login` and see Notifications, Play and Profile.
+- **Referral links page:** staff see their own link; agents and agencies see their staff's links; the
+  admin filters Agency → Agent → Staff and copies any link.
+- **Change level / move (admin only)** `POST /accounts/:id/change-role {role, parentId}`: only for
+  accounts with nobody below them; the new parent must be exactly one level above; administrators
+  and agencies cannot be changed; the hierarchy table, agent/agency links and referral code are
+  rewritten in one transaction; the account's sessions are ended; audited. Admin UI is on the
+  account detail page.
+- Mobile sign-up screen now asks for the referral code.
+- Tests: 8 more unit tests; `test/referral-smoke.sh` (49 checks incl. visibility by hierarchy,
+  closure-table rows and DB constraint); `apps/web/test-referrals.e2e.js` (19 browser checks).
+- Not built: referral links for agency/agent levels (users must sit under a staff member), bulk moves,
+  moving accounts that have accounts below them, email verification at sign-up.

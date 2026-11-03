@@ -33,3 +33,20 @@ describe('hierarchy', () => {
     expect(ROLE_PERMISSIONS.USER).not.toContain('accounts:read');
   });
 });
+
+import { validateRoleChange } from './hierarchy';
+describe('validateRoleChange', () => {
+  const user = { id: 'u', role: Role.USER };
+  it('allows moving a leaf under a valid parent', () => expect(validateRoleChange(user, Role.USER, { id: 's2', role: Role.STAFF }, 0)).toBeNull());
+  it('allows promoting a leaf to the next level under the right parent', () => expect(validateRoleChange(user, Role.STAFF, { id: 'a', role: Role.AGENT }, 0)).toBeNull());
+  it('rejects a parent of the wrong level', () => expect(validateRoleChange(user, Role.STAFF, { id: 's', role: Role.STAFF }, 0)).toMatch(/must belong to a AGENT/));
+  it('rejects accounts that still have accounts below them', () => expect(validateRoleChange({ id: 's', role: Role.STAFF }, Role.USER, { id: 's2', role: Role.STAFF }, 3)).toMatch(/3 account/));
+  it('never touches or creates administrators', () => {
+    expect(validateRoleChange({ id: 'x', role: Role.SUPER_ADMIN }, Role.USER, { id: 's', role: Role.STAFF }, 0)).toMatch(/Administrators/);
+    expect(validateRoleChange(user, Role.SUPER_ADMIN, { id: 's', role: Role.STAFF }, 0)).toMatch(/Super Admin/);
+  });
+  it('requires a parent and forbids self-parenting', () => {
+    expect(validateRoleChange(user, Role.USER, null, 0)).toMatch(/required/);
+    expect(validateRoleChange(user, Role.USER, { id: 'u', role: Role.STAFF }, 0)).toMatch(/own parent/);
+  });
+});

@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Module, Post, Req } from '@nestjs/common';
+import { Body, Controller, Get, Module, Param, Post, Req } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
 import { Throttle } from '@nestjs/throttler';
 import { IsEmail, IsOptional, IsString, Length, Matches, MinLength } from 'class-validator';
@@ -18,7 +18,7 @@ export class RegisterDto {
   @IsString() @MinLength(10) password: string;
   @IsString() @Length(1, 120) fullName: string;
   @IsOptional() @Matches(/^\+?[0-9]{8,15}$/) phone?: string;
-  @IsString() staffUsername: string;
+  @Matches(/^[A-Za-z0-9]{4,16}$/) referralCode: string;
 }
 export class ChangePasswordDto { @IsString() currentPassword: string; @IsString() @MinLength(10) newPassword: string; }
 export class RefreshDto { @IsString() refreshToken: string; }
@@ -30,8 +30,11 @@ const meta = (req: any) => ({ ip: req.ip as string, userAgent: req.headers['user
 export class AuthController {
   constructor(private readonly auth: AuthService) {}
 
-  @Public() @Post('register') @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  @Public() @Post('register') @Throttle({ default: { limit: Number(process.env.REGISTER_RATE_LIMIT ?? 5), ttl: 60_000 } })
   register(@Body() dto: RegisterDto, @Req() req: any) { return this.auth.register(dto, req.ip); }
+
+  @Public() @Get('referral/:code') @Throttle({ default: { limit: 30, ttl: 60_000 } })
+  referral(@Param('code') code: string) { return this.auth.referralInfo(code.slice(0, 16)); }
 
   @Public() @AllowInMaintenance() @Post('login') @Throttle({ default: { limit: Number(process.env.LOGIN_RATE_LIMIT ?? 10), ttl: 60_000 } })
   login(@Body() dto: LoginDto, @Req() req: any) { return this.auth.login(dto, meta(req)); }

@@ -42,6 +42,8 @@ model User {
   totpEnabled      Boolean       @default(false) @map("totp_enabled")
   /// Set for accounts created with a temporary password; blocks everything except /auth/* until changed.
   mustChangePassword Boolean     @default(false) @map("must_change_password")
+  /// Sign-up link code. Only STAFF accounts have one; new users register under that staff member.
+  referralCode     String?       @unique @map("referral_code")
   lastLogin        DateTime?     @map("last_login")
   createdAt        DateTime      @default(now()) @map("created_at")
   updatedAt        DateTime      @updatedAt @map("updated_at")

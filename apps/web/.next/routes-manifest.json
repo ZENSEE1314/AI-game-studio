@@ -63,6 +63,14 @@
       "namedRegex": "^/accounts/(?<nxtPid>[^/]+?)(?:/)?$"
     },
     {
+      "page": "/api/auth/referral/[code]",
+      "regex": "^/api/auth/referral/([^/]+?)(?:/)?$",
+      "routeKeys": {
+        "nxtPcode": "nxtPcode"
+      },
+      "namedRegex": "^/api/auth/referral/(?<nxtPcode>[^/]+?)(?:/)?$"
+    },
+    {
       "page": "/api/proxy/[...path]",
       "regex": "^/api/proxy/(.+?)(?:/)?$",
       "routeKeys": {
@@ -175,6 +183,18 @@
       "regex": "^/profile(?:/)?$",
       "routeKeys": {},
       "namedRegex": "^/profile(?:/)?$"
+    },
+    {
+      "page": "/referrals",
+      "regex": "^/referrals(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/referrals(?:/)?$"
+    },
+    {
+      "page": "/signup",
+      "regex": "^/signup(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/signup(?:/)?$"
     },
     {
       "page": "/system",

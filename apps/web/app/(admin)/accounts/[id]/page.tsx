@@ -4,6 +4,32 @@ import { useParams } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
 import { Account, api, fmt } from '@/lib/client';
 
+const LEVELS = ['AGENCY', 'AGENT', 'STAFF', 'USER'];
+const PARENT_OF: Record<string, string> = { AGENCY: 'SUPER_ADMIN', AGENT: 'AGENCY', STAFF: 'AGENT', USER: 'STAFF' };
+
+function ChangeLevel({ acc, onDone }: { acc: Account; onDone: () => void }) {
+  const [role, setRole] = useState(acc.role); const [parents, setParents] = useState<Account[]>([]); const [parentId, setParentId] = useState('');
+  const [err, setErr] = useState(''); const [ok, setOk] = useState('');
+  useEffect(() => { setParentId(''); const pr = PARENT_OF[role]; if (!pr || pr === 'SUPER_ADMIN') { setParents([]); return; }
+    api(`accounts?role=${pr}&limit=100`).then((r) => setParents(r.items.filter((p: Account) => p.id !== acc.id))); }, [role, acc.id]);
+  async function save() {
+    setErr(''); setOk('');
+    if (!confirm(`Change ${acc.username} to ${role} under the selected parent? Their sessions will be ended.`)) return;
+    try { await api(`accounts/${acc.id}/change-role`, { method: 'POST', body: { role, parentId } }); setOk('Updated'); onDone(); } catch (e: any) { setErr(e.message); }
+  }
+  if (PARENT_OF[role] === 'SUPER_ADMIN') return <p className="text-sm text-slate-500">Agencies sit directly under the administrator and cannot be moved.</p>;
+  return (
+    <div className="card space-y-3"><h2 className="font-semibold">Change level / move</h2>
+      <p className="text-xs text-slate-500">Only for accounts with nobody below them. The new parent must be one level above the chosen level.</p>
+      <div className="grid grid-cols-2 gap-2">
+        <select className="input" value={role} onChange={(e) => setRole(e.target.value)} aria-label="New level">{LEVELS.filter((l) => l !== 'AGENCY').map((l) => <option key={l}>{l}</option>)}</select>
+        <select className="input" value={parentId} onChange={(e) => setParentId(e.target.value)} aria-label="New parent"><option value="">Parent {PARENT_OF[role]}…</option>{parents.map((p) => <option key={p.id} value={p.id}>{p.fullName} (@{p.username})</option>)}</select>
+      </div>
+      {err && <p className="text-sm text-red-600" role="alert">{err}</p>}{ok && <p className="text-sm text-green-700">{ok}</p>}
+      <button className="btn btn-primary" disabled={!parentId} onClick={save}>Apply change</button></div>
+  );
+}
+
 type Preview = { target: Account; affectedAccounts: number; byRole: Record<string, number> };
 
 export default function Detail() {
@@ -80,6 +106,8 @@ export default function Detail() {
         </div>
       )}
 
+      {isAdmin && acc.role !== 'SUPER_ADMIN' && acc.role !== 'AGENCY' && <ChangeLevel acc={acc} onDone={load} />}
+      {acc.referralCode && <div className="card text-sm"><span className="text-slate-500">Referral code:</span> <b>{acc.referralCode}</b> <a className="ml-2 text-indigo-600 hover:underline" href="/referrals">see links</a></div>}
       {kids.length > 0 && (
         <div className="card">
           <div className="mb-2 flex items-center justify-between"><h2 className="font-semibold">Direct subordinates ({kids.length})</h2>

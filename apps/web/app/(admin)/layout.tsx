@@ -14,7 +14,8 @@ const ACCOUNTS: Record<string, Nav[]> = {
 };
 const ADMIN_ONLY: Nav[] = [['Game Rounds', '/game'], ['Credits', '/credits'], ['Administrators', '/admins'], ['Accounting', '/accounting'], ['Chart & Periods', '/accounting/setup'], ['Financial Reports', '/accounting/reports'],
   ['Reconciliation', '/accounting/reconciliation'], ['System Settings', '/system'], ['Audit Logs', '/audit']];
-const navFor = (role: string): Nav[] => [['Dashboard', '/dashboard'], ['Notifications', '/notifications'], ...(role === 'SUPER_ADMIN' ? [] : ([['Play', '/play']] as Nav[])), ...(ACCOUNTS[role] ?? []), ...(role === 'SUPER_ADMIN' ? ADMIN_ONLY : []), ['My profile', '/profile']];
+const REFERRAL: Nav[] = [['Referral links', '/referrals']];
+const navFor = (role: string): Nav[] => [...(role === 'USER' ? [] : ([['Dashboard', '/dashboard']] as Nav[])), ['Notifications', '/notifications'], ...(role === 'SUPER_ADMIN' ? [] : ([['Play', '/play']] as Nav[])), ...(ACCOUNTS[role] ?? []), ...(role !== 'USER' ? REFERRAL : []), ...(role === 'SUPER_ADMIN' ? ADMIN_ONLY : []), ['My profile', '/profile']];
 const adminOnlyPath = (p: string) => ADMIN_ONLY.some(([, h]) => p === h || p.startsWith(h + '/'));
 
 function Sidebar({ role, name }: { role: string; name: string }) {
@@ -51,6 +52,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const path = usePathname();
   useEffect(() => { api('auth/me').then(setMe).catch(() => {}); }, []);
   useEffect(() => { if (me && me.role !== 'SUPER_ADMIN' && adminOnlyPath(path)) window.location.replace('/dashboard');
+    if (me && me.role === 'USER' && (path === '/dashboard' || path.startsWith('/accounts'))) window.location.replace('/play');
+    if (me && me.role === 'USER' && path.startsWith('/referrals')) window.location.replace('/play');
     if (me && me.role === 'SUPER_ADMIN' && path.startsWith('/play')) window.location.replace('/game'); }, [me, path]);
   if (!me) return <div className="p-6 text-slate-500">Loading…</div>;
   return (
