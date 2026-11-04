@@ -21,16 +21,22 @@ export class AuthService {
     private system: SystemService, private accounts: AccountsService,
   ) {}
 
-  async register(dto: { username: string; email: string; password: string; fullName: string; phone?: string; staffUsername: string }, ip?: string) {
+  async register(dto: { username: string; email: string; password: string; fullName: string; phone?: string; referralCode: string }, ip?: string) {
     const { status } = await this.system.getStatus();
     if (status !== SystemStatus.ACTIVE) throw new ForbiddenException('Registration unavailable');
-    const staff = await this.prisma.user.findUnique({ where: { username: dto.staffUsername } });
-    if (!staff || staff.role !== Role.STAFF) throw new BadRequestException('Invalid staff referral');
-    const user = await this.accounts.createInternal(
+    const staff = await this.prisma.user.findFirst({ where: { referralCode: dto.referralCode.trim().toUpperCase(), role: Role.STAFF, status: 'ACTIVE' } });
+    if (!staff) throw new BadRequestException('This referral code is not valid');
+    const { referralCode, ...rest } = dto;
+    return this.accounts.createInternal(
       { id: staff.id, role: staff.role, username: staff.username, sessionId: '' },
-      { role: Role.USER, parentId: staff.id, ...dto }, ip, 'USER_SELF_REGISTERED',
+      { role: Role.USER, parentId: staff.id, ...rest }, ip, 'USER_SELF_REGISTERED',
     );
-    return user;
+  }
+
+  /** Public: lets the sign-up page show who the person is joining. Reveals only the staff member's display name. */
+  async referralInfo(code: string) {
+    const staff = await this.prisma.user.findFirst({ where: { referralCode: code.trim().toUpperCase(), role: Role.STAFF, status: 'ACTIVE' }, select: { fullName: true } });
+    return staff ? { valid: true, staffName: staff.fullName } : { valid: false };
   }
 
   async login(dto: { username: string; password: string; totp?: string }, meta: { ip?: string; userAgent?: string }) {
@@ -92,7 +98,7 @@ export class AuthService {
   async profile(userId: string) {
     return this.prisma.user.findUniqueOrThrow({
       where: { id: userId },
-      select: { id: true, username: true, email: true, phone: true, fullName: true, role: true, status: true, lastLogin: true, createdAt: true, totpEnabled: true, mustChangePassword: true },
+      select: { id: true, username: true, email: true, phone: true, fullName: true, role: true, status: true, lastLogin: true, createdAt: true, totpEnabled: true, mustChangePassword: true, referralCode: true },
     });
   }
 

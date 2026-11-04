@@ -5,17 +5,22 @@ import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { toCsv } from '../common/csv';
 import { AuthUser } from '../common/decorators';
-import { creatableRoles, deriveChain, isValidParent } from '../common/hierarchy';
+import { randomBytes } from 'crypto';
+import { creatableRoles, deriveChain, isValidParent, validateRoleChange } from '../common/hierarchy';
 
 export interface CreateAccountInput {
   role: Role; parentId?: string; username: string; email: string; password: string;
   fullName: string; phone?: string;
 }
 
+// No 0/O/1/I/L: codes are read aloud and typed by hand.
+const CODE_CHARS = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+export const newReferralCode = () => Array.from(randomBytes(8), (b) => CODE_CHARS[b % CODE_CHARS.length]).join('');
+
 const PUBLIC_SELECT = {
   id: true, username: true, email: true, phone: true, fullName: true, role: true, parentId: true,
   agencyId: true, agentId: true, staffId: true, status: true, suspendedAt: true,
-  suspensionReason: true, lastLogin: true, createdAt: true, updatedAt: true,
+  suspensionReason: true, lastLogin: true, createdAt: true, updatedAt: true, referralCode: true,
 } satisfies Prisma.UserSelect;
 
 @Injectable()
@@ -63,6 +68,7 @@ export class AccountsService {
           data: {
             username: dto.username, email: dto.email.toLowerCase(), phone: dto.phone, fullName: dto.fullName,
             passwordHash, role: dto.role, parentId: parent.id, ...chain,
+            ...(dto.role === Role.STAFF ? { referralCode: newReferralCode() } : {}),
           },
           select: PUBLIC_SELECT,
         });
@@ -124,6 +130,46 @@ export class AccountsService {
   async history(actor: AuthUser, id: string) {
     await this.assertInScope(actor, id);
     return this.prisma.accountStatusHistory.findMany({ where: { userId: id }, orderBy: { createdAt: 'desc' } });
+  }
+
+  /**
+   * Admin: change an account's level and/or move it under another parent. Only accounts with nobody below them;
+   * the closure table, denormalised ancestors and referral code are rewritten in one transaction and sessions revoked.
+   */
+  async changeRole(actor: AuthUser, id: string, d: { role: Role; parentId: string }, ip?: string) {
+    return this.prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(727003)`; // hierarchy edits one at a time
+      const t = await tx.user.findUnique({ where: { id } });
+      if (!t) throw new NotFoundException('Account not found');
+      const parent = await tx.user.findUnique({ where: { id: d.parentId } });
+      if (!parent) throw new NotFoundException('Parent not found');
+      const kids = await tx.accountHierarchy.count({ where: { ancestorId: id, depth: { gt: 0 } } });
+      const err = validateRoleChange({ id: t.id, role: t.role }, d.role, parent ? { id: parent.id, role: parent.role } : null, kids);
+      if (err) throw new BadRequestException(err);
+      if (!parent) throw new NotFoundException('Parent not found');
+      // The new parent must not itself sit below the account being moved (cannot happen for leaves, kept as a guard).
+      const loop = await tx.accountHierarchy.count({ where: { ancestorId: id, descendantId: parent.id } });
+      if (loop) throw new BadRequestException('The new parent is below this account');
+      const blocked = await tx.accountHierarchy.count({ where: { descendantId: parent.id, ancestor: { status: 'SUSPENDED' } } });
+      if (blocked > 0) throw new ConflictException('The new parent is suspended');
+
+      const chain = deriveChain(parent);
+      let referralCode: string | null = d.role === Role.STAFF ? (t.role === Role.STAFF ? t.referralCode : newReferralCode()) : null;
+      const updated = await tx.user.update({
+        where: { id }, data: { role: d.role, parentId: parent.id, ...chain, referralCode },
+        select: PUBLIC_SELECT,
+      });
+      await tx.accountHierarchy.deleteMany({ where: { descendantId: id, ancestorId: { not: id } } });
+      const ancestors = await tx.accountHierarchy.findMany({ where: { descendantId: parent.id } });
+      await tx.accountHierarchy.createMany({ data: ancestors.map((a) => ({ ancestorId: a.ancestorId, descendantId: id, depth: a.depth + 1 })) });
+      // Permissions changed: end every session of this account.
+      const revoked = await tx.userSession.updateMany({ where: { userId: id, revokedAt: null }, data: { revokedAt: new Date(), revokeReason: 'ROLE_CHANGED' } });
+      await this.audit.log({
+        actorId: actor.id, action: 'ACCOUNT_ROLE_CHANGED', entityType: 'user', entityId: id,
+        metadata: { fromRole: t.role, toRole: d.role, fromParent: t.parentId, toParent: parent.id, sessionsRevoked: revoked.count }, ip,
+      }, tx);
+      return updated;
+    });
   }
 
   // ---------- suspension ----------

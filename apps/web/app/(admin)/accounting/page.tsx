@@ -26,16 +26,16 @@ function NewEntry({ accounts, onDone }: { accounts: ChartAccount[]; onDone: () =
   }
   return (
     <div className="card space-y-3">
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <input type="date" className="input" value={date} onChange={(e) => setDate(e.target.value)} />
-        <input className="input col-span-2" placeholder="Description" value={desc} onChange={(e) => setDesc(e.target.value)} />
+        <input className="input sm:col-span-2" placeholder="Description" value={desc} onChange={(e) => setDesc(e.target.value)} />
       </div>
       {lines.map((l, i) => (
-        <div key={i} className="grid grid-cols-12 gap-2">
-          <select className="input col-span-6" value={l.accountId} onChange={(e) => set(i, 'accountId', e.target.value)}>
+        <div key={i} className="grid grid-cols-1 gap-2 sm:grid-cols-12">
+          <select className="input sm:col-span-6" value={l.accountId} onChange={(e) => set(i, 'accountId', e.target.value)}>
             <option value="">Account…</option>{accounts.filter((a) => a.isActive).map((a) => <option key={a.id} value={a.id}>{a.code} {a.name}</option>)}</select>
-          <input className="input col-span-3" placeholder="Debit" inputMode="decimal" value={l.debit} onChange={(e) => set(i, 'debit', e.target.value)} />
-          <input className="input col-span-3" placeholder="Credit" inputMode="decimal" value={l.credit} onChange={(e) => set(i, 'credit', e.target.value)} />
+          <input className="input sm:col-span-3" placeholder="Debit" inputMode="decimal" value={l.debit} onChange={(e) => set(i, 'debit', e.target.value)} />
+          <input className="input sm:col-span-3" placeholder="Credit" inputMode="decimal" value={l.credit} onChange={(e) => set(i, 'credit', e.target.value)} />
         </div>))}
       <div className="flex items-center justify-between text-sm">
         <button className="btn btn-ghost" onClick={() => setLines([...lines, { accountId: '', debit: '', credit: '' }])}>Add line</button>
@@ -60,7 +60,7 @@ export default function Journals() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <h1 className="text-xl font-semibold">Journal entries</h1>
         <button className="btn btn-primary" onClick={() => setOpen(!open)}>{open ? 'Close' : 'New entry'}</button>
       </div>

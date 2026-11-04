@@ -13,7 +13,7 @@ export default function Audit() {
   return (
     <div className="space-y-4">
       <h1 className="text-xl font-semibold">Audit logs</h1>
-      <input className="input max-w-xs" placeholder="Filter by exact action, e.g. ACCOUNT_SUSPENDED"
+      <input className="input sm:max-w-xs" placeholder="Filter by exact action, e.g. ACCOUNT_SUSPENDED"
         onKeyDown={(e) => { if (e.key === 'Enter') { setPage(1); setAction((e.target as HTMLInputElement).value.trim()); } }} />
       {err && <p className="text-red-600">{err}</p>}
       <div className="card overflow-x-auto p-0">

@@ -20,13 +20,13 @@ export default function Notifications() {
   const pages = data ? Math.max(1, Math.ceil(data.total / 20)) : 1;
   return (
     <div className="max-w-2xl space-y-4">
-      <div className="flex items-center justify-between"><h1 className="text-xl font-semibold">Notifications {data && data.unread > 0 && <span className="text-base font-normal text-slate-500">({data.unread} unread)</span>}</h1>
+      <div className="flex flex-wrap items-center justify-between gap-2"><h1 className="text-xl font-semibold">Notifications {data && data.unread > 0 && <span className="text-base font-normal text-slate-500">({data.unread} unread)</span>}</h1>
         <div className="flex gap-2"><label className="flex items-center gap-1 text-sm"><input type="checkbox" checked={unreadOnly} onChange={(e) => { setPage(1); setUnreadOnly(e.target.checked); }} /> Unread only</label>
           <button className="btn btn-ghost" disabled={!data?.unread} onClick={readAll}>Mark all read</button></div></div>
       {err && <p className="text-red-600">{err}</p>}
       <ul className="space-y-2">{data?.items.map((n) => (
         <li key={n.id}><button onClick={() => open(n)} className={`card w-full text-left hover:border-indigo-300 ${n.readAt ? '' : 'border-indigo-300 bg-indigo-50'}`}>
-          <div className="flex items-center justify-between"><span className="font-medium">{n.title}</span><span className="text-xs text-slate-500">{fmt(n.createdAt)}</span></div>
+          <div className="flex flex-wrap items-center justify-between gap-2"><span className="font-medium">{n.title}</span><span className="text-xs text-slate-500">{fmt(n.createdAt)}</span></div>
           <div className="text-sm text-slate-600">{n.body}</div></button></li>))}
         {data && !data.items.length && <li className="card text-center text-slate-500">{unreadOnly ? 'No unread notifications' : 'Nothing yet — you will be told here when rounds open and results are published.'}</li>}</ul>
       <div className="flex items-center justify-end gap-2 text-sm">

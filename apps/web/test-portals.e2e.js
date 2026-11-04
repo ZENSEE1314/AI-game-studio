@@ -42,7 +42,7 @@ const ok = (n, c) => { console.log((c ? 'PASS ' : 'FAIL ') + n); if (!c) process
   });
   // STAFF
   await session(st, async (p) => {
-    const n = await nav(p); ok('staff nav minimal', n.join('|') === 'Dashboard|My users|My profile');
+    const n = await nav(p); ok('staff nav minimal', n.join('|').replace(/\d+$/, '') === 'Dashboard|Notifications|Play|My users|Referral links|My profile');
     await create(p, 'USER', us, 'Portal User'); ok('staff created user in UI', true);
     await p.click('a:has-text("' + us + '")'); await p.waitForSelector('h1'); ok('staff opens user detail', true);
     ok('no suspend button for staff', await p.locator('button:has-text("Suspend")').count() === 0);
@@ -55,8 +55,9 @@ const ok = (n, c) => { console.log((c ? 'PASS ' : 'FAIL ') + n); if (!c) process
   // old password rejected, new works; end user rejected from web
   let r = await fetch(API + '/auth/login', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ username: st, password: PW }) }); ok('old password rejected', r.status === 401);
   r = await fetch(API + '/auth/login', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ username: st, password: 'NewLongPassword456' }) }); ok('new password works', r.status === 201);
-  const p2 = await (await b.newContext()).newPage(); await p2.goto(W + '/login'); await p2.fill('input[name=username]', us); await p2.fill('input[name=password]', PW); await p2.click('button');
-  await p2.waitForSelector('p[role=alert]'); ok('end user blocked from web portal with clear message', /mobile app/i.test(await p2.locator('p[role=alert]').innerText()));
+  // End users now sign in on the web too (they land on Play)
+  const p2 = await (await b.newContext()).newPage(); await p2.goto(W + '/login'); await p2.fill('input[name=username]', us); await p2.fill('input[name=password]', PW); await p2.click('button:has-text("Sign in")');
+  await p2.waitForURL('**/play', { timeout: 20000 }); ok('end user signs in on the web and lands on Play', true);
   // Super admin still full + sees all
   await session('superadmin', async (p) => { p.setDefaultTimeout(8000); }).catch(() => {});
   await b.close();

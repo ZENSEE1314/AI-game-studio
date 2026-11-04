@@ -17,6 +17,7 @@ export default function Dashboard() {
   useEffect(() => {
     (async () => {
       const me = await api('auth/me'); setRole(me.role); setName(me.fullName);
+      if (me.role === 'USER') { window.location.replace('/play'); return; }
       const levels = BELOW[me.role] ?? [];
       const [counts, active, suspended, s] = await Promise.all([
         Promise.all(levels.map((r) => count(`role=${r}`))), count('status=ACTIVE'), count('status=SUSPENDED'), api('system/status'),

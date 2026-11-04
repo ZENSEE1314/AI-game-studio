@@ -13,6 +13,7 @@ export class CreateAccountDto {
   @IsString() @Length(1, 120) fullName: string;
   @IsOptional() @Matches(/^\+?[0-9]{8,15}$/) phone?: string;
 }
+export class ChangeRoleDto { @IsEnum(Role) role: Role; @IsUUID() parentId: string; }
 export class ReasonDto { @IsString() @Length(5, 500) reason: string; }
 
 @Controller('accounts')
@@ -57,6 +58,11 @@ export class AccountsController {
 
   @Get(':id/suspension-preview') @RequirePermissions('accounts:suspend')
   preview(@CurrentUser() u: AuthUser, @Param('id', ParseUUIDPipe) id: string) { return this.svc.suspensionPreview(u, id); }
+
+  @Post(':id/change-role') @RequirePermissions('accounts:manage')
+  changeRole(@CurrentUser() u: AuthUser, @Param('id', ParseUUIDPipe) id: string, @Body() dto: ChangeRoleDto, @Req() req: any) {
+    return this.svc.changeRole(u, id, dto, req.ip);
+  }
 
   @Post(':id/suspend') @RequirePermissions('accounts:suspend')
   suspend(@CurrentUser() u: AuthUser, @Param('id', ParseUUIDPipe) id: string, @Body() dto: ReasonDto, @Req() req: any) {

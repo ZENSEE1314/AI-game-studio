@@ -20,7 +20,7 @@ export async function api<T = any>(path: string, init?: { method?: string; body?
 export type Account = {
   id: string; username: string; email: string; phone: string | null; fullName: string; role: string;
   parentId: string | null; status: 'ACTIVE' | 'SUSPENDED'; suspendedAt: string | null;
-  suspensionReason: string | null; lastLogin: string | null; createdAt: string;
+  suspensionReason: string | null; lastLogin: string | null; createdAt: string; referralCode?: string | null;
 };
 export type ChartAccount = { id: string; code: string; name: string; class: string; isActive: boolean; isCash: boolean; cashFlowActivity: string | null };
 export const money = (v: string | number) => Number(v).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });

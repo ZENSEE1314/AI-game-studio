@@ -49,3 +49,17 @@ export function deriveChain(parent: ChainNode) {
 export function isValidParent(childRole: Role, parentRole: Role): boolean {
   return PARENT_ROLE[childRole] === parentRole;
 }
+
+/**
+ * Rules for changing an account's level and/or parent (admin action).
+ * Returns an error message, or null when allowed. `descendants` = accounts below the target.
+ */
+export function validateRoleChange(target: { id: string; role: Role }, newRole: Role, newParent: { id: string; role: Role } | null, descendants: number): string | null {
+  if (target.role === Role.SUPER_ADMIN) return 'Administrators cannot be moved or changed here';
+  if (newRole === Role.SUPER_ADMIN) return 'Cannot promote an account to Super Admin here; create an administrator instead';
+  if (!newParent) return 'A new parent account is required';
+  if (newParent.id === target.id) return 'An account cannot be its own parent';
+  if (!isValidParent(newRole, newParent.role)) return `A ${newRole} must belong to a ${PARENT_ROLE[newRole]}`;
+  if (descendants > 0) return `This account has ${descendants} account(s) below it. Move or remove them first`;
+  return null;
+}

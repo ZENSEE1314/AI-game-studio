@@ -26,7 +26,7 @@ export default function Recons() {
         <tbody>{status.map((s) => <tr key={s.accountId} className="border-b last:border-0"><td className="px-3 py-2">{s.code} {s.name}</td><td className="px-3 py-2">{money(s.bookBalance)}</td>
           <td className={`px-3 py-2 ${s.unreconciledLines ? 'text-amber-700' : ''}`}>{s.unreconciledLines}</td><td className="px-3 py-2">{s.lastReconciledDate ? String(s.lastReconciledDate).slice(0, 10) : 'never'}</td></tr>)}
           {!status.length && <tr><td colSpan={4} className="px-3 py-4 text-slate-500">No cash accounts. Mark an asset account as “cash” under Chart & Periods.</td></tr>}</tbody></table></div>
-      <form onSubmit={start} className="card grid grid-cols-4 gap-2">
+      <form onSubmit={start} className="card grid grid-cols-1 gap-2 sm:grid-cols-4">
         <select name="accountId" className="input" required><option value="">Cash account…</option>{cash.map((a) => <option key={a.id} value={a.id}>{a.code} {a.name}</option>)}</select>
         <input name="statementDate" type="date" className="input" required />
         <input name="statementBalance" className="input" placeholder="Statement ending balance" inputMode="decimal" required />

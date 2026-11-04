@@ -1,11 +1,11 @@
 import { Role } from '@prisma/client';
 
 export type PermissionCode =
-  | 'accounts:read' | 'accounts:create' | 'accounts:suspend'
+  | 'accounts:read' | 'accounts:create' | 'accounts:suspend' | 'accounts:manage'
   | 'accounting:read' | 'accounting:write' | 'accounting:approve' | 'game:play' | 'game:manage' | 'wallet:read' | 'wallet:grant' | 'admins:manage' | 'audit:read' | 'system:read' | 'system:manage' | 'users:assist';
 
 const ALL: PermissionCode[] = [
-  'accounts:read', 'accounts:create', 'accounts:suspend',
+  'accounts:read', 'accounts:create', 'accounts:suspend', 'accounts:manage',
   'accounting:read', 'accounting:write', 'accounting:approve', 'game:manage', 'wallet:grant', 'admins:manage', 'audit:read', 'system:read', 'system:manage', 'users:assist',
 ];
 

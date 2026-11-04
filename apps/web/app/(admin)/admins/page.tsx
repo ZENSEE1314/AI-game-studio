@@ -25,13 +25,13 @@ export default function Admins() {
       <h1 className="text-xl font-semibold">Administrators</h1>
       <p className="text-sm text-slate-600">Administrators have full access. A second administrator lets accounting entries and reconciliations be approved by someone other than their creator.</p>
       {err && <p className="rounded bg-red-50 p-2 text-sm text-red-700" role="alert">{err}</p>}{note && <p className="rounded bg-green-50 p-2 text-sm text-green-700">{note}</p>}
-      <form onSubmit={create} className="card grid grid-cols-2 gap-2">
-        <h2 className="col-span-2 font-semibold">Add administrator</h2>
+      <form onSubmit={create} className="card grid grid-cols-1 gap-2 sm:grid-cols-2">
+        <h2 className="font-semibold sm:col-span-2">Add administrator</h2>
         <input name="username" className="input" placeholder="Username" required /><input name="fullName" className="input" placeholder="Full name" required />
         <input name="email" type="email" className="input" placeholder="Email" required />
         <input name="temporaryPassword" type="password" minLength={12} className="input" placeholder="Temporary password (min 12)" autoComplete="new-password" required />
-        <input name="currentPassword" type="password" className="input col-span-2" placeholder="Your password (to confirm)" autoComplete="current-password" required />
-        <button className="btn btn-primary col-span-2">Create administrator</button>
+        <input name="currentPassword" type="password" className="input sm:col-span-2" placeholder="Your password (to confirm)" autoComplete="current-password" required />
+        <button className="btn btn-primary sm:col-span-2">Create administrator</button>
       </form>
       <div className="card overflow-x-auto p-0"><table className="w-full text-sm">
         <thead className="border-b bg-slate-50 text-left text-slate-500"><tr>{['Administrator', 'Status', '2FA', 'Last login', ''].map((h) => <th key={h} className="px-3 py-2 font-medium">{h}</th>)}</tr></thead>

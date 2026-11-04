@@ -40,15 +40,15 @@ export default function Play() {
     <div className="max-w-4xl space-y-4">
       <h1 className="text-xl font-semibold">Play</h1>
       <p className="text-xs text-slate-500">In-game credits have no cash value and cannot be bought, sold, transferred or withdrawn. Your credits are only held while a round is open and are always returned.</p>
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         {[['Available', w?.available], ['Held in open round', w?.held], ['Total', w?.total]].map(([k, v]) => <div key={k as string} className="card"><div className="text-sm text-slate-500">{k}</div><div className="text-xl font-semibold">{v === undefined ? '…' : Number(v).toLocaleString()}</div></div>)}</div>
       {err && <p className="rounded bg-red-50 p-2 text-sm text-red-700" role="alert">{err}</p>}{note && <p className="rounded bg-green-50 p-2 text-sm text-green-700">{note}</p>}
       <select className="input w-auto" value={rid} onChange={(e) => { setNote(''); setRid(e.target.value); }}>
         {rounds.length === 0 && <option>No rounds yet</option>}{rounds.map((r) => <option key={r.id} value={r.id}>{r.name} — {r.status}</option>)}</select>
       {round && <div className="card space-y-3">
-        <div className="flex items-center justify-between"><h2 className="font-semibold">{round.name}</h2><span className="text-sm text-slate-500">{round.status} · min {min.toLocaleString()} per number</span></div>
+        <div className="flex flex-wrap items-center justify-between gap-2"><h2 className="font-semibold">{round.name}</h2><span className="text-sm text-slate-500">{round.status} · min {min.toLocaleString()} per number</span></div>
         {winNum && <p className="rounded bg-indigo-50 p-2 text-sm">Winning number: <b>{winNum}</b>. Winners: {round.winners?.length ? round.winners.map((x: any) => x.fullName).join(', ') : 'nobody'}</p>}
-        <div className="grid grid-cols-9 gap-2">{NUMS.map((n) => { const on = picks[n] !== undefined; return (
+        <div className="grid grid-cols-6 gap-2 sm:grid-cols-9">{NUMS.map((n) => { const on = picks[n] !== undefined; return (
           <button key={n} type="button" disabled={!open} aria-pressed={on} onClick={() => toggle(n)}
             className={`rounded-md border py-2 text-sm font-medium ${winNum === n ? 'ring-2 ring-indigo-500' : ''} ${on ? 'border-indigo-600 bg-indigo-600 text-white' : 'border-slate-300 bg-white'} disabled:opacity-60`}>{n}</button>); })}</div>
         {entries.length > 0 && <div className="space-y-1">{entries.map((e) => (

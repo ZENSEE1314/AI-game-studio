@@ -14,8 +14,8 @@ export default function Rounds() {
   return (
     <div className="max-w-4xl space-y-4">
       <h1 className="text-xl font-semibold">Game rounds</h1>
-      <form onSubmit={create} className="card grid grid-cols-4 gap-2">
-        <input name="name" className="input col-span-2" placeholder="Round name" required minLength={2} />
+      <form onSubmit={create} className="card grid grid-cols-1 gap-2 sm:grid-cols-4">
+        <input name="name" className="input sm:col-span-2" placeholder="Round name" required minLength={2} />
         <input name="minStake" type="number" min={1} defaultValue={10000} className="input" title="Minimum credits per selected number" />
         <button className="btn btn-primary">Create round</button>
       </form>

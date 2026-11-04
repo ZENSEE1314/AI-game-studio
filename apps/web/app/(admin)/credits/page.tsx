@@ -21,7 +21,7 @@ export default function Credits() {
     <div className="max-w-4xl space-y-4">
       <h1 className="text-xl font-semibold">In-game credits</h1>
       <p className="rounded border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">Credits are for the internal game only. They have no cash value and cannot be bought, sold, transferred or withdrawn. Only Super Admin can grant them.</p>
-      <input className="input max-w-xs" placeholder="Search username or name…" onKeyDown={(e) => e.key === 'Enter' && (setPage(1), setSearch((e.target as HTMLInputElement).value))} />
+      <input className="input sm:max-w-xs" placeholder="Search username or name…" onKeyDown={(e) => e.key === 'Enter' && (setPage(1), setSearch((e.target as HTMLInputElement).value))} />
       {err && <p className="text-red-600" role="alert">{err}</p>}{note && <p className="text-green-700">{note}</p>}
       <div className="card overflow-x-auto p-0"><table className="w-full text-sm">
         <thead className="border-b bg-slate-50 text-left text-slate-500"><tr>{['User', 'Level', 'Available', 'Held in open round', ''].map((h) => <th key={h} className="px-3 py-2 font-medium">{h}</th>)}</tr></thead>
